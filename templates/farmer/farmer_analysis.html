@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+{% block title %}Analysis – {{ farmer.name }}{% endblock %}
+
+{% block content %}
+<!-- Font Awesome & Bootstrap Icons for a wider icon set -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+<!-- Chart.js for graphing -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+
+<style>
+    /* Unified styles from other pages */
+    body {
+        background-color: #f8f9fa;
+    }
+    .page-header {
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+    }
+    .nav-pills .nav-link {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    .nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+        background-color: #198754; /* Green for farmers section */
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+    }
+
+    /* Custom styles for the analysis page */
+    .stat-card {
+        background-color: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        text-align: center;
+        height: 100%;
+        transition: all 0.2s ease-in-out;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+    .stat-card .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+    .stat-card .card-title {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+    .stat-card .stat-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+    }
+    .stat-card .text-success { color: #198754 !important; }
+    .stat-card .text-info { color: #0dcaf0 !important; }
+    .stat-card .text-danger { color: #dc3545 !important; }
+    .stat-card .text-primary { color: #0d6efd !important; }
+    .stat-card .text-warning { color: #ffc107 !important; }
+
+
+    .chart-card {
+        background-color: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+    }
+
+    /* Light-themed badges for table status */
+    .bg-warning-light { background-color: #fff3cd; }
+    .text-warning-dark { color: #664d03; }
+    .bg-success-light { background-color: #d1e7dd; }
+    .text-success-dark { color: #0f5132; }
+    .bg-info-light { background-color: #cff4fc; }
+    .text-info-dark { color: #055160; }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+        <div>
+            <h2 class="mb-0">Milk Supply & Payment Analysis</h2>
+            <p class="text-muted mb-0">Viewing analytics for {{ farmer.name }}</p>
+        </div>
+        <a href="{{ url_for('farmer_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon text-success"><i class="bi bi-wallet2"></i></div>
+                <h5 class="card-title">Total Earnings</h5>
+                <div class="stat-value text-success">₹{{ monthly_data|sum(attribute='earnings')|round(2) }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon text-info"><i class="bi bi-droplet-fill"></i></div>
+                <h5 class="card-title">Total Milk</h5>
+                <div class="stat-value text-info">
+                    {{ ((monthly_data|sum(attribute='cow_qty') or 0) + (monthly_data|sum(attribute='buffalo_qty') or 0))|round(2) }} <span class="fs-5 text-muted">L</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon text-primary"><i class="bi bi-speedometer2"></i></div>
+                <h5 class="card-title">Avg. Daily Supply</h5>
+                <div class="stat-value text-primary">
+                    {% set total_days = chart_dates|length %}
+                    {% if total_days > 0 %}
+                        {{ (daily_total_milk|sum / total_days)|round(2) }}
+                    {% else %}
+                        0
+                    {% endif %}
+                    <span class="fs-5 text-muted">L</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon text-danger"><i class="bi bi-hourglass-split"></i></div>
+                <h5 class="card-title">Outstanding Due</h5>
+                <div class="stat-value text-danger">
+                    ₹{{ status_summary|selectattr('0', 'equalto', 'unpaid')|map(attribute=2)|sum or 0 }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <h5 class="card-title mb-3">📊 Monthly Earnings vs. Supply</h5>
+                <div style="height: 320px;">
+                    <canvas id="earningsVsSupplyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <h5 class="card-title mb-3">☀️ Morning vs. Evening Supply</h5>
+                <div style="height: 320px;">
+                    <canvas id="sessionSupplyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="chart-card">
+                <h5 class="card-title mb-3">📈 Daily Supply (Last 30 Days)</h5>
+                <div style="height: 320px;">
+                    <canvas id="dailySupplyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="chart-card">
+                        <h5 class="card-title mb-3">💰 Payment Status</h5>
+                        <div style="height: 144px;">
+                            <canvas id="paymentStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                     <div class="chart-card">
+                        <h5 class="card-title mb-3">🥛 Milk Type</h5>
+                        <div style="height: 144px;">
+                            <canvas id="milkTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="chart-card">
+                <h5 class="card-title mb-3">📋 Recent Supply Records</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Session</th>
+                                <th>Cow Milk (L)</th>
+                                <th>Buffalo Milk (L)</th>
+                                <th>Total Milk (L)</th>
+                                <th>Total Amount (₹)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supply in daily_supply_for_table %}
+                            <tr>
+                                <td>{{ supply[0].strftime('%Y-%m-%d') }}</td>
+                                <td>{{ supply[1]|capitalize }}</td>
+                                <td>{{ supply[2]|round(2) }}</td>
+                                <td>{{ supply[3]|round(2) }}</td>
+                                <td>{{ (supply[2] + supply[3])|round(2) }}</td>
+                                <td>{{ supply[4]|round(2) }}</td>
+                                <td><span class="badge rounded-pill {% if supply[5] == 'paid' %}bg-success-light text-success-dark{% elif supply[5] == 'partial' %}bg-info-light text-info-dark{% else %}bg-warning-light text-warning-dark{% endif %}">{{ supply[5]|capitalize }}</span></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No recent supply data available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Chart.js Global Configuration
+    Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif';
+    Chart.defaults.responsive = true;
+    Chart.defaults.maintainAspectRatio = false;
+    Chart.defaults.plugins.tooltip.backgroundColor = '#212529';
+    Chart.defaults.plugins.tooltip.titleFont = { size: 14, weight: 'bold' };
+    Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 4;
+    Chart.defaults.interaction.intersect = false;
+    Chart.defaults.interaction.mode = 'index';
+
+    const monthlyLabels = {{ monthly_data|map(attribute='month')|list|default([])|tojson }};
+
+    // 1. Monthly Earnings vs. Supply Chart (Combined Bar/Line)
+    const earningsVsSupplyCtx = document.getElementById('earningsVsSupplyChart');
+    if (earningsVsSupplyCtx) {
+        new Chart(earningsVsSupplyCtx, {
+            type: 'bar',
+            data: {
+                labels: monthlyLabels,
+                datasets: [
+                    {
+                        label: 'Earnings (₹)',
+                        data: {{ monthly_data|map(attribute='earnings')|list|default([])|tojson }},
+                        backgroundColor: 'rgba(25, 135, 84, 0.6)',
+                        borderColor: 'rgba(25, 135, 84, 1)',
+                        yAxisID: 'y',
+                        order: 2
+                    },
+                    {
+                        label: 'Total Milk (L)',
+                        data: {{ monthly_data|map(attribute='total_qty')|list|default([])|tojson }},
+                        type: 'line',
+                        borderColor: 'rgba(13, 202, 240, 1)',
+                        backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                        fill: true,
+                        yAxisID: 'y1',
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        ticks: { callback: function(value) { return '₹' + value; } }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: function(value) { return value + ' L'; } }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Daily Supply Chart (Line)
+    const dailySupplyCtx = document.getElementById('dailySupplyChart');
+    if (dailySupplyCtx) {
+        new Chart(dailySupplyCtx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_dates|default([])|tojson }},
+                datasets: [{
+                    label: 'Total Milk (L)',
+                    data: {{ daily_total_milk|default([])|tojson }},
+                    backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                    borderColor: 'rgba(13, 202, 240, 1)',
+                    pointBackgroundColor: 'rgba(13, 202, 240, 1)',
+                    pointHoverRadius: 7,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                scales: {
+                    x: { type: 'time', time: { unit: 'day', tooltipFormat: 'MMM d, yyyy' } },
+                    y: { beginAtZero: true, ticks: { callback: function(value) { return value + ' L'; } } }
+                },
+                plugins: { tooltip: { callbacks: { label: function(context) { return ` Total Milk: ${context.raw.toFixed(2)} L`; } } } }
+            }
+        });
+    }
+
+    // 3. Payment Status Chart (Doughnut)
+    const paymentStatusCtx = document.getElementById('paymentStatusChart');
+    if (paymentStatusCtx) {
+        new Chart(paymentStatusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ status_summary|map(attribute=0)|map('capitalize')|list|default([])|tojson|safe }},
+                datasets: [{
+                    data: {{ status_summary|map(attribute=2)|list|default([])|tojson }},
+                    backgroundColor: ['rgba(25, 135, 84, 0.7)', 'rgba(220, 53, 69, 0.7)', 'rgba(255, 193, 7, 0.7)'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 8
+                }]
+            },
+            options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ` ${context.label}: ₹${context.raw.toFixed(2)}`; } } } } }
+        });
+    }
+
+    // 4. Milk Type Distribution (Doughnut)
+    const milkTypeCtx = document.getElementById('milkTypeChart');
+    if (milkTypeCtx) {
+        const totalCowQty = {{ monthly_data|sum(attribute='cow_qty')|default(0, true) }};
+        const totalBuffaloQty = {{ monthly_data|sum(attribute='buffalo_qty')|default(0, true) }};
+        new Chart(milkTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cow Milk', 'Buffalo Milk'],
+                datasets: [{
+                    data: [totalCowQty, totalBuffaloQty],
+                    backgroundColor: ['rgba(13, 110, 253, 0.7)', 'rgba(108, 117, 125, 0.7)'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 8
+                }]
+            },
+            options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; let value = context.raw || 0; let total = context.chart.getDatasetMeta(0).total; let percentage = total > 0 ? (value / total * 100).toFixed(1) : 0; return ` ${label}: ${value.toFixed(2)} L (${percentage}%)`; } } } } }
+        });
+    }
+
+    // 5. Morning vs Evening Supply (Grouped Bar)
+    const sessionSupplyCtx = document.getElementById('sessionSupplyChart');
+    if(sessionSupplyCtx) {
+        new Chart(sessionSupplyCtx, {
+            type: 'bar',
+            data: {
+                labels: monthlyLabels,
+                datasets: [
+                    {
+                        label: 'Morning Supply (L)',
+                        data: {{ monthly_data|map(attribute='morning_qty')|list|default([])|tojson }},
+                        backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Evening Supply (L)',
+                        data: {{ monthly_data|map(attribute='evening_qty')|list|default([])|tojson }},
+                        backgroundColor: 'rgba(108, 117, 125, 0.6)',
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: function(value) { return value + ' L'; } } }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ` ${context.dataset.label}: ${context.raw.toFixed(2)} L`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

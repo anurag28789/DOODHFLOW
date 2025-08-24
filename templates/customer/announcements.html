@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Announcements{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Announcements</h2>
+    {% if announcements %}
+        <ul class="list-group">
+        {% for ann in announcements %}
+            <li class="list-group-item">
+                <h5>{{ ann.title }}</h5>
+                <p>{{ ann.content }}</p>
+                <small class="text-muted">{{ ann.date_posted.strftime('%d-%b-%Y') }}</small>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No announcements available at this time.</p>
+    {% endif %}
+</div>
+{% endblock %}

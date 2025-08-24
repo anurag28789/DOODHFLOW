@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Supply History for {{ farmer.name }}{% endblock %}
+
+{% block content %}
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+<style>
+  body { background-color: #f8f9fa; }
+  .page-header {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .filter-section {
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e9ecef;
+    margin-bottom: 1.5rem;
+  }
+  .due-amount-card {
+    background: linear-gradient(45deg, #dc3545, #fd7e14);
+    color: #fff;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    text-align: center;
+  }
+  .due-amount-card .label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+  }
+  .due-amount-card .amount {
+    font-size: 1.75rem;
+    font-weight: 700;
+  }
+  .history-card {
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    transition: box-shadow 0.2s ease-in-out;
+  }
+  .history-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.07); }
+  .history-card .checkbox-col { padding-right: 1rem; }
+  .history-card .date-block {
+    text-align: center;
+    margin-right: 1.5rem;
+    padding-right: 1.5rem;
+    border-right: 1px solid #e9ecef;
+    min-width: 100px;
+  }
+  .history-card .date-block .day {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .history-card .date-block .month-year {
+    font-size: 0.8rem;
+    color: #6c757d;
+  }
+  .history-card .supply-details {
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .history-card .detail-item {
+    text-align: center;
+  }
+  .history-card .detail-item .item-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+  }
+  .history-card .detail-item .item-value {
+    font-weight: 500;
+  }
+  .history-card .actions {
+    min-width: 150px;
+    text-align: right;
+  }
+  .bg-warning-light { background-color: #fff3cd; }
+  .text-warning-dark { color: #664d03; }
+  .bg-success-light { background-color: #d1e7dd; }
+  .text-success-dark { color: #0f5132; }
+  .bg-info-light { background-color: #cff4fc; }
+  .text-info-dark { color: #055160; }
+</style>
+
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center page-header">
+    <div>
+      <h2 class="mb-0">Supply History</h2>
+      <p class="text-muted mb-0">Viewing records for {{ farmer.name }}</p>
+    </div>
+    <div class="d-flex gap-2">
+      <!-- Download Dropdown -->
+      <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle" type="button" id="downloadMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fas fa-download me-2"></i>Download Report
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="downloadMenuButton">
+          <li><a class="dropdown-item" href="{{ url_for('download_farmer_report', farmer_id=farmer.id, status='all') }}">All Supplies (CSV)</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('download_farmer_report', farmer_id=farmer.id, status='paid') }}">Paid Supplies (CSV)</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('download_farmer_report', farmer_id=farmer.id, status='unpaid') }}">Unpaid Supplies (CSV)</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('download_farmer_report', farmer_id=farmer.id, status='partial') }}">Partial Supplies (CSV)</a></li>
+        </ul>
+      </div>
+      {% if role in ['admin', 'milkman'] %}
+        <a href="{{ url_for('manage_farmers') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Back to Farmers</a>
+      {% elif role == 'farmer' %}
+        <a href="{{ url_for('farmer_dashboard') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Back to Dashboard</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="filter-section">
+    <form method="get" class="row g-3 align-items-center">
+      <div class="col-md-3">
+        <label for="startDate" class="form-label">Start Date</label>
+        <input type="date" id="startDate" name="start_date" class="form-control" value="{{ start_date }}">
+      </div>
+      <div class="col-md-3">
+        <label for="endDate" class="form-label">End Date</label>
+        <input type="date" id="endDate" name="end_date" class="form-control" value="{{ end_date }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Session</label>
+        <select name="session" class="form-select">
+          <option value="" {% if not session_name %}selected{% endif %}>All Sessions</option>
+          <option value="morning" {% if session_name == 'morning' %}selected{% endif %}>Morning</option>
+          <option value="evening" {% if session_name == 'evening' %}selected{% endif %}>Evening</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <option value="" {% if not request.args.get('status') %}selected{% endif %}>All Statuses</option>
+          <option value="paid" {% if request.args.get('status') == 'paid' %}selected{% endif %}>Paid</option>
+          <option value="unpaid" {% if request.args.get('status') == 'unpaid' %}selected{% endif %}>Unpaid</option>
+          <option value="partial" {% if request.args.get('status') == 'partial' %}selected{% endif %}>Partial</option>
+        </select>
+      </div>
+      <div class="col-12 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </form>
+  </div>
+
+  {% if role in ['admin', 'milkman'] %}
+  <form method="POST" action="{{ url_for('generate_farmer_bill', farmer_id=farmer.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% endif %}
+
+  {% for supply in supplies_history %}
+  <div class="history-card">
+    {% if role in ['admin', 'milkman'] %}
+    <div class="checkbox-col">
+      {% if supply.status == 'unpaid' %}
+      <input class="form-check-input" type="checkbox" name="supply_ids" value="{{ supply.id }}">
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="date-block">
+      <div class="day">{{ supply.date.strftime('%d') }}</div>
+      <div class="month-year">{{ supply.date.strftime('%b %Y') }}</div>
+    </div>
+    <div class="supply-details">
+      <div class="detail-item">
+        <div class="item-label">Cow Milk</div>
+        <div class="item-value">{{ supply.cow_qty }} L</div>
+      </div>
+      <div class="detail-item">
+        <div class="item-label">Buffalo Milk</div>
+        <div class="item-value">{{ supply.buffalo_qty }} L</div>
+      </div>
+      <div class="detail-item">
+        <div class="item-label">Status</div>
+        <div class="item-value">
+          <span class="badge rounded-pill
+            {% if supply.status == 'paid' %}bg-success-light text-success-dark
+            {% elif supply.status == 'partial' %}bg-info-light text-info-dark
+            {% else %}bg-warning-light text-warning-dark
+            {% endif %}">
+            {{ supply.status|capitalize }}
+          </span>
+        </div>
+      </div>
+      <div class="detail-item">
+        <div class="item-label">Total Amount</div>
+        <div class="item-value fw-bold text-success">₹{{ supply.total_amount }}</div>
+      </div>
+    </div>
+    {% if role in ['admin', 'milkman'] %}
+    <div class="actions">
+      {% if supply.status == 'unpaid' %}
+      <form method="POST" action="{{ url_for('update_supply_status', supply_id=supply.id) }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="status" value="paid">
+        <button type="submit" class="btn btn-success btn-sm">Mark Paid</button>
+      </form>
+      {% elif supply.status == 'paid' %}
+      <a href="{{ url_for('farmer_view_bill', supply_id=supply.id) }}" class="btn btn-info btn-sm">View Bill</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="text-center p-5 bg-light rounded">
+    <i class="fas fa-history fa-3x text-muted mb-3"></i>
+    <h4>No Supply History Found</h4>
+    <p class="text-muted">There are no records matching your filter criteria.</p>
+  </div>
+  {% endfor %}
+
+  {% if role in ['admin', 'milkman'] and supplies_history %}
+  <div class="mt-4 text-end">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="fas fa-receipt me-2"></i>Generate Bill for Selected
+    </button>
+  </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

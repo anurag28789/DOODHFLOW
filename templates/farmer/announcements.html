@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Announcements{% endblock %}
+{% block content %}
+<h2>Announcements</h2>
+<ul>
+    {% for ann in announcements %}
+      <li>{{ ann.message }} - <small>{{ ann.date }}</small></li>
+    {% else %}
+      <li>No announcements yet.</li>
+    {% endfor %}
+</ul>
+<a href="{{ url_for('farmer_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+{% endblock %}

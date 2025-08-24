@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Manage Farmers{% endblock %}
+
+{% block content %}
+<style>
+    /* Custom styles for a modern, clean look */
+    body {
+        background-color: #f8f9fa;
+    }
+    .nav-pills .nav-link {
+        color: #6c757d;
+    }
+    .nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+        background-color: #198754; /* Green for farmers section */
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+    }
+    .farmer-card {
+        transition: all 0.2s ease-in-out;
+        border: 1px solid #e9ecef;
+        border-radius: 0.75rem;
+        background-color: #fff;
+    }
+    .farmer-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    .card-footer {
+        background-color: #f8f9fa;
+    }
+    .card-actions .btn {
+        margin: 0 3px;
+    }
+    .table-hover tbody tr:hover {
+        background-color: #eef5ff;
+    }
+    .page-header {
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+    }
+</style>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+        <div>
+            <h2 class="mb-0">Farmer Management</h2>
+            <p class="text-muted mb-0">Oversee farmers and manage milk collection.</p>
+        </div>
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_farmers' %}active{% endif %}" href="{{ url_for('manage_farmers') }}">
+                <i class="fas fa-tractor me-2"></i>Farmers
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_farmers_supply' %}active{% endif %}" href="{{ url_for('manage_farmers_supply') }}">
+                <i class="fas fa-plus-circle me-2"></i>Today's Supply
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_farmers_last_supply' %}active{% endif %}" href="{{ url_for('manage_farmers_last_supply') }}">
+                <i class="fas fa-history me-2"></i>Last Supply
+            </a>
+        </li>
+    </ul>
+
+    <!-- Farmers List (Card View) -->
+    {% if request.endpoint == 'manage_farmers' %}
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <form method="get" action="{{ url_for('manage_farmers') }}">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" class="form-control" placeholder="Search farmers by ID, name, or phone..." value="{{ request.args.get('search', '') }}">
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{{ url_for('add_farmer') }}" class="btn btn-primary"><i class="fas fa-user-plus me-2"></i> Add New Farmer</a>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            {% for farmer in farmers %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 farmer-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="card-title mb-1">{{ farmer.name }}</h5>
+                            <span class="badge rounded-pill {{ 'bg-success' if farmer.active else 'bg-secondary' }}">{{ 'Active' if farmer.active else 'Inactive' }}</span>
+                        </div>
+                        <small class="text-muted">Farmer ID: {{ farmer.id }}</small>
+                        <hr class="my-2">
+                        <p class="card-text small mb-1"><i class="fas fa-phone-alt fa-fw me-2 text-muted"></i>{{ farmer.phone }}</p>
+                        <p class="card-text small mb-2"><i class="fas fa-map-marker-alt fa-fw me-2 text-muted"></i>{{ farmer.address }}</p>
+                        <div class="d-flex justify-content-around">
+                            <div class="text-center">
+                                <small class="text-muted">Cow Rate</small>
+                                <p class="fw-bold mb-0">₹{{ farmer.cow_rate|round(2) }}</p>
+                            </div>
+                            <div class="text-center">
+                                <small class="text-muted">Buffalo Rate</small>
+                                <p class="fw-bold mb-0">₹{{ farmer.buffalo_rate|round(2) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-center card-actions">
+                        <a href="{{ url_for('farmer_history', farmer_id=farmer.id) }}" class="btn btn-sm btn-outline-info" title="Supply History"><i class="fas fa-history"></i></a>
+                        <a href="{{ url_for('edit_farmer', farmer_id=farmer.id) }}" class="btn btn-sm btn-outline-warning" title="Edit"><i class="fas fa-edit"></i></a>
+                        {% if farmer.active %}
+                            <a href="{{ url_for('deactivate_farmer', farmer_id=farmer.id) }}" class="btn btn-sm btn-outline-secondary" title="Deactivate"><i class="fas fa-toggle-off"></i></a>
+                        {% else %}
+                            <a href="{{ url_for('activate_farmer', farmer_id=farmer.id) }}" class="btn btn-sm btn-outline-success" title="Activate"><i class="fas fa-toggle-on"></i></a>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('delete_farmer', id=farmer.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('This action cannot be undone. Delete this farmer?')"><i class="fas fa-trash-alt"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">No farmers found. Try adjusting your search or add a new farmer.</div>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

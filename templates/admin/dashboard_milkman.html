@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Milkman Dashboard{% endblock %}
+
+{% block content %}
+<!-- Font Awesome for better icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+<style>
+    /* Consistent styles from other dashboards */
+    body {
+        background-color: #f8f9fa;
+    }
+    .profile-header {
+        background: linear-gradient(45deg, #0d6efd, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+    }
+    .profile-header h2 {
+        font-weight: 700;
+    }
+    .profile-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .stat-card {
+        background-color: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        text-align: center;
+        height: 100%;
+        transition: all 0.2s ease-in-out;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+    .stat-card .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+        color: #0d6efd;
+    }
+    .stat-card .card-title {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+    .stat-card .stat-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+    }
+
+    .action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        background-color: #fff;
+        border: 1px solid #e9ecef;
+        color: #212529;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+        height: 100%;
+    }
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        color: #0d6efd;
+    }
+    .action-card .action-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #0d6efd;
+    }
+    .action-card .action-title {
+        font-weight: 500;
+    }
+
+    .progress-card {
+        background-color: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        height: 100%;
+    }
+    .progress-label {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+</style>
+
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="profile-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-1">Dashboard</h2>
+            <p>Welcome back, {{ current_user.username }}!</p>
+        </div>
+    </div>
+
+    {% if not current_user.is_active_admin %}
+        <!-- DEACTIVATED ADMIN PANEL -->
+        <div class="card text-center border-danger shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Admin Functions Deactivated</strong>
+            </div>
+            <div class="card-body">
+                <h4 class="card-title">Your Account is Currently Inactive</h4>
+                <p class="card-text">Customers cannot place new orders and automated jobs are paused.</p>
+                {% if current_user.deactivation_reason %}
+                    <p class="text-muted border p-2 rounded">Reason: "{{ current_user.deactivation_reason }}"</p>
+                {% endif %}
+
+                <!-- Reactivate Button -->
+                <a href="{{ url_for('admin_reactivate') }}" class="btn btn-success btn-lg mt-2">
+                    <i class="fas fa-power-off me-2"></i> Reactivate
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <!-- FULL ACTIVE DASHBOARD -->
+        <div class="d-flex justify-content-end mb-3">
+            {% if current_user.role == 'milkman' %}
+                <form method="POST" action="{{ url_for('milkman_deactivate_self') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-power-off me-2"></i> Deactivate
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+
+        <!-- Top Stats -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <h5 class="card-title">Active Customers</h5>
+                    <p class="stat-value">{{ total_customers }}</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-inbox"></i></div>
+                    <h5 class="card-title">Pending Requests</h5>
+                    <p class="stat-value">{{ pending_requests }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Operations -->
+        <h4 class="mb-3">Today's Operations</h4>
+        <div class="row g-4 mb-5">
+            <!-- Morning Session -->
+            <div class="col-lg-6">
+                <div class="progress-card">
+                    <h5 class="mb-3"><i class="fas fa-sun me-2 text-warning"></i>Morning Session</h5>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between progress-label">
+                            <span>Cow Milk</span>
+                            <span>{{ total_cow_collected_morning }} L / {{ total_cow_required_morning }} L</span>
+                        </div>
+                        <div class="progress" style="height: 1.25rem;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ cow_morning_percent }}%;" aria-valuenow="{{ cow_morning_percent }}" aria-valuemin="0" aria-valuemax="100">{{ cow_morning_percent }}%</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between progress-label">
+                            <span>Buffalo Milk</span>
+                            <span>{{ total_buffalo_collected_morning }} L / {{ total_buffalo_required_morning }} L</span>
+                        </div>
+                        <div class="progress" style="height: 1.25rem;">
+                            <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ buffalo_morning_percent }}%;" aria-valuenow="{{ buffalo_morning_percent }}" aria-valuemin="0" aria-valuemax="100">{{ buffalo_morning_percent }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evening Session -->
+            <div class="col-lg-6">
+                <div class="progress-card">
+                    <h5 class="mb-3"><i class="fas fa-moon me-2 text-primary"></i>Evening Session</h5>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between progress-label">
+                            <span>Cow Milk</span>
+                            <span>{{ total_cow_collected_evening }} L / {{ total_cow_required_evening }} L</span>
+                        </div>
+                        <div class="progress" style="height: 1.25rem;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ cow_evening_percent }}%;" aria-valuenow="{{ cow_evening_percent }}" aria-valuemin="0" aria-valuemax="100">{{ cow_evening_percent }}%</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between progress-label">
+                            <span>Buffalo Milk</span>
+                            <span>{{ total_buffalo_collected_evening }} L / {{ total_buffalo_required_evening }} L</span>
+                        </div>
+                        <div class="progress" style="height: 1.25rem;">
+                            <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ buffalo_evening_percent }}%;" aria-valuenow="{{ buffalo_evening_percent }}" aria-valuemin="0" aria-valuemax="100">{{ buffalo_evening_percent }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Management Actions -->
+        <h4 class="mb-3">Management Actions</h4>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <a href="{{ url_for('manage_customers') }}" class="action-card">
+                    <div class="action-icon"><i class="fas fa-users"></i></div>
+                    <div class="action-title">Manage Customers</div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ url_for('manage_farmers') }}" class="action-card">
+                    <div class="action-icon"><i class="fas fa-tractor"></i></div>
+                    <div class="action-title">Manage Farmers</div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ url_for('milk_rates') }}" class="action-card">
+                    <div class="action-icon"><i class="fas fa-tags"></i></div>
+                    <div class="action-title">Set Milk Rates</div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ url_for('admin_analysis') }}" class="action-card">
+                    <div class="action-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="action-title">Business Analysis</div>
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+<!-- templates/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}Home - Doodh Flow{% endblock %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+
+  <h1 class="mb-4">Welcome to Doodh Flow 🥛</h1>
+  <p class="lead mb-5">
+    Manage your dairy business — customers, farmers, milk deliveries, and payments — all in one platform.
+  </p>
+
+  {% if current_user.is_authenticated %}
+  <h4>Hello, {{ current_user.username }}!</h4>
+  <p class="mb-3">
+    You are logged in as: <strong>{{ session.get('active_role', 'N/A')|capitalize }}</strong>
+  </p>
+  <a href="{{ url_for('logout') }}" class="btn btn-warning btn-lg px-4">Logout</a>
+{% else %}
+  <div class="d-flex justify-content-center gap-3">
+    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4">Login</a>
+  </div>
+{% endif %}
+
+
+</div>
+{% endblock %}

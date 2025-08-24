@@ -1,0 +1,80 @@
+/* ------------ GLOBAL SETTINGS ------------ */
+body {
+  background-color: #f5f7fb;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  color: #343a40;
+}
+
+/* ------------ NAVBAR ------------ */
+.navbar {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.navbar-brand {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* ------------ DASHBOARD CARDS ------------ */
+.dashboard-card {
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.07);
+}
+
+.dashboard-action a,
+.dashboard-action button {
+  font-size: 1.25rem;
+  font-weight: 500;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-action a span {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ------------ PAGE HEADERS ------------ */
+h2 {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  border-left: 5px solid #0d6efd;
+  padding-left: 10px;
+}
+
+/* ------------ ALERTS ------------ */
+.alert {
+  border-left: 5px solid transparent;
+  border-radius: 5px;
+}
+.alert-success {
+  border-color: #198754;
+}
+.alert-danger {
+  border-color: #dc3545;
+}
+.alert-info {
+  border-color: #0dcaf0;
+}
+.alert-warning {
+  border-color: #ffc107;
+}
+
+/* ------------ BUTTONS ------------ */
+.btn {
+  transition: all 0.2s ease-in-out;
+}
+.btn:hover {
+  transform: scale(1.02);
+}

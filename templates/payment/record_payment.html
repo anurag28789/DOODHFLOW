@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Record Payment{% endblock %}
+
+{% block content %}
+<div class="container my-4" style="max-width:600px;">
+  <h2>
+    Record Payment for {{ requirement.session|capitalize }} Order
+    on {{ requirement.date_requested.strftime('%d %b %Y') }}
+  </h2>
+  <p>Amount Due: ₹{{ "%.2f"|format(total_due) }}</p>
+
+  <p>
+    <strong>Milk Quantities:</strong>
+    Cow: {{ requirement.cow_qty }} L @ ₹{{ requirement.cow_rate_at_order }} |
+    Buffalo: {{ requirement.buffalo_qty }} L @ ₹{{ requirement.buffalo_rate_at_order }}
+  </p>
+
+  <form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+      {{ form.amount.label(class="form-label") }}
+      {{ form.amount(class="form-control", value=total_due) }}
+      {% for error in form.amount.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.remarks.label(class="form-label") }}
+      {{ form.remarks(class="form-control") }}
+    </div>
+
+    <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+    <a href="{{ url_for('customer_order_history_view', customer_id=requirement.customer_id) }}" class="btn btn-secondary ms-2">
+      Cancel
+    </a>
+  </form>
+</div>
+{% endblock %}

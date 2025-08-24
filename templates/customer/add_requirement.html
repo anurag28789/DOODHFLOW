@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Add Milk Requirement{% endblock %}
+
+{% block content %}
+<div class="container pt-3" style="max-width: 600px;">
+  <h2>Add Milk Requirement</h2>
+
+  <form method="POST">
+      {{ form.hidden_tag() }}
+      <!-- Session -->
+      <div class="mb-3">
+          {{ form.session.label(class="form-label") }}
+          {{ form.session(class="form-select") }}
+      </div>
+      <!-- Date -->
+      <div class="mb-3" id="singleDateRow">
+          {{ form.date_requested.label(class="form-label") }}
+          {{ form.date_requested(class="form-control",
+                                 value=form.date_requested.data or date.today().strftime('%Y-%m-%d'),
+                                 min=date.today().strftime('%Y-%m-%d')) }}
+          {% for err in form.date_requested.errors %}
+              <div class="text-danger small">{{ err }}</div>
+          {% endfor %}
+      </div>
+      <!-- Quantities -->
+      <div class="mb-3">{{ form.cow_qty.label(class="form-label") }} {{ form.cow_qty(class="form-control", min="0") }}</div>
+      <div class="mb-3">{{ form.buffalo_qty.label(class="form-label") }} {{ form.buffalo_qty(class="form-control", min="0") }}</div>
+      <!-- Recurring -->
+      <div class="mb-3 form-check">
+          {{ form.is_recurring(class="form-check-input", id="isRecurringCheck") }}
+          <label for="isRecurringCheck" class="form-check-label">{{ form.is_recurring.label.text }}</label>
+      </div>
+      <div id="recurringFields" style="display: none;">
+          <div class="mb-3">{{ form.recurrence_pattern.label }} {{ form.recurrence_pattern(class="form-select", multiple=True, size=7) }}</div>
+          <div class="mb-3">{{ form.repeat_start_date.label }} {{ form.repeat_start_date(class="form-control", min=date.today().strftime('%Y-%m-%d')) }}</div>
+          <div class="mb-3">{{ form.repeat_end_date.label }} {{ form.repeat_end_date(class="form-control", min=date.today().strftime('%Y-%m-%d')) }}</div>
+      </div>
+      <!-- Submit -->
+      <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+      <a href="{{ url_for('customer_dashboard') }}" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const recurringCheck = document.getElementById('isRecurringCheck');
+    const recurringFields = document.getElementById('recurringFields');
+    const singleDateRow = document.getElementById('singleDateRow');
+    const singleDateField = document.querySelector('input[name="date_requested"]');
+    const recPattern = document.querySelector('select[name="recurrence_pattern"]');
+    const recStart = document.querySelector('input[name="repeat_start_date"]');
+    const recEnd = document.querySelector('input[name="repeat_end_date"]');
+    let lastCheckedState = recurringCheck.checked;
+
+    function toggleRecurringFields() {
+        if (recurringCheck.checked) {
+            recurringFields.style.display = 'block';
+            singleDateRow.style.display = 'none';
+            singleDateField.required = false;
+            singleDateField.value = '';
+            recStart.required = true;
+            recEnd.required = true;
+        } else {
+            recurringFields.style.display = 'none';
+            singleDateRow.style.display = 'block';
+            singleDateField.required = true;
+            recStart.required = false;
+            recEnd.required = false;
+            if (lastCheckedState === true) {
+                for (let opt of recPattern.options) { opt.selected = false; }
+                recStart.value = '';
+                recEnd.value = '';
+            }
+        }
+        lastCheckedState = recurringCheck.checked;
+    }
+    recurringCheck.addEventListener('change', toggleRecurringFields);
+    toggleRecurringFields();
+});
+</script>
+{% endblock %}

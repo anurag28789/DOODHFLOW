@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Milkman{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h2>Contact Your Milkman</h2>
+
+  {% if milkman %}
+    <div class="card p-4 shadow-sm">
+      <h4>{{ milkman.name or milkman.username }}</h4>
+
+      {% if milkman.phone %}
+      <p><strong>Phone:</strong> <a href="tel:{{ milkman.phone }}">{{ milkman.phone }}</a></p>
+      {% else %}
+      <p><strong>Phone:</strong> Not provided</p>
+      {% endif %}
+
+      {% if milkman.email %}
+      <p><strong>Email:</strong> <a href="mailto:{{ milkman.email }}">{{ milkman.email }}</a></p>
+      {% else %}
+      <p><strong>Email:</strong> Not provided</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <p>No milkman assigned to you currently.</p>
+  {% endif %}
+
+  <a href="{{ url_for('farmer_dashboard') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+</div>
+{% endblock %}

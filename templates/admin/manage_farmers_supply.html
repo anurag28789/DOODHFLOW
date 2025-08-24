@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Today's Supply{% endblock %}
+{% block content %}
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .page-header {
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+    }
+    .nav-pills .nav-link {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    .nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+        background-color: #198754;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+    }
+    .supply-card {
+        border: 1px solid #e9ecef;
+        border-radius: 0.75rem;
+        background-color: #fff;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .supply-card .card-header {
+        background-color: #f8f9fa;
+        font-weight: 500;
+    }
+    .supply-card .card-footer {
+        background-color: #f8f9fa;
+        display: flex;
+        justify-content: space-around;
+        font-size: 0.9rem;
+    }
+    .amount-display .amount-label {
+        color: #6c757d;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+    }
+    .amount-display .amount-value {
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+    .total-amt .amount-value {
+        color: #198754;
+    }
+</style>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+        <div>
+            <h2 class="mb-0">Farmer Management</h2>
+            <p class="text-muted mb-0">Oversee farmers and manage milk collection.</p>
+        </div>
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- NEW: WhatsApp Notification Box -->
+    {% if updated_farmers_info %}
+    <div class="alert alert-success mb-4">
+        <h5 class="alert-heading"><i class="fab fa-whatsapp me-2"></i>Notify Updated Farmers</h5>
+        <p>Click a button below to send a WhatsApp notification for the supply you just saved.</p>
+        <hr>
+        {% for name, phone, cow_qty, buffalo_qty, status, total_amount, cow_rate, buffalo_rate in updated_farmers_info %}
+            {% set cow_subtotal = (cow_qty or 0) * (cow_rate or 0) %}
+            {% set buffalo_subtotal = (buffalo_qty or 0) * (buffalo_rate or 0) %}
+            {% set message = "*DoodhFlow Supply Summary - " ~ session_name|capitalize ~ "*\n" %}
+            {% set message = message ~ "--------------------\n" %}
+            {% set message = message ~ "Hello " ~ name ~ ",\n" %}
+            {% set message = message ~ "Your supply for today has been recorded:\n\n" %}
+            {% if cow_qty > 0 %}
+                {% set message = message ~ "Cow Milk: " ~ cow_qty ~ "L x ₹" ~ ("%.2f"|format(cow_rate)) ~ " = ₹" ~ ("%.2f"|format(cow_subtotal)) ~ "\n" %}
+            {% endif %}
+            {% if buffalo_qty > 0 %}
+                {% set message = message ~ "Buffalo Milk: " ~ buffalo_qty ~ "L x ₹" ~ ("%.2f"|format(buffalo_rate)) ~ " = ₹" ~ ("%.2f"|format(buffalo_subtotal)) ~ "\n" %}
+            {% endif %}
+            {% set message = message ~ "\n--------------------\n" %}
+            {% set message = message ~ "*Total Amount: ₹" ~ ("%.2f"|format(total_amount)) ~ "*\n" %}
+            {% set message = message ~ "Status: " ~ status|capitalize %}
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>{{ name }}</span>
+                <a href="https://wa.me/91{{ phone }}?text={{ message | urlencode }}" target="_blank" class="btn btn-sm btn-success">
+                    <i class="fab fa-whatsapp me-1"></i> Notify {{ name.split(' ')[0] }}
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <!-- END NEW -->
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_farmers' %}active{% endif %}" href="{{ url_for('manage_farmers') }}">
+                <i class="fas fa-tractor me-2"></i>Farmers
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_farmers_supply' %}active{% endif %}" href="{{ url_for('manage_farmers_supply') }}">
+                <i class="fas fa-plus-circle me-2"></i>Today's Supply
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'manage_farmers_last_supply' %}active{% endif %}" href="{{ url_for('manage_farmers_last_supply') }}">
+                <i class="fas fa-history me-2"></i>Last Supply
+            </a>
+        </li>
+    </ul>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">{{ session_name|capitalize }} Session <span class="text-muted fw-normal fs-5">({{ today.strftime('%d %B %Y') }})</span></h4>
+        <div>
+            <a href="{{ url_for('manage_farmers_supply', session='morning', search=search) }}"
+               class="btn btn-outline-primary rounded-pill {% if session_name == 'morning' %}active{% endif %}">Morning</a>
+            <a href="{{ url_for('manage_farmers_supply', session='evening', search=search) }}"
+               class="btn btn-outline-primary rounded-pill {% if session_name == 'evening' %}active{% endif %}">Evening</a>
+        </div>
+    </div>
+    <form method="get" action="{{ url_for('manage_farmers_supply') }}" class="row g-3 mb-4">
+        <input type="hidden" name="session" value="{{ session_name }}">
+        <div class="col-sm-6 col-md-5">
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" name="search" value="{{ search }}" placeholder="Search by ID, Name, or Phone" class="form-control">
+            </div>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <a href="{{ url_for('manage_farmers_supply', session=session_name) }}" class="btn btn-secondary">Clear</a>
+        </div>
+    </form>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for farmer in farmers %}
+        {% set supply = supplies.get(farmer.id) %}
+        <div class="card supply-card mb-4">
+            <div class="card-header">
+                {{ farmer.name }} <small class="text-muted ms-1">/ {{ farmer.phone }}</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <label class="form-label">Cow Milk (L)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" min="0"
+                                   name="cow_{{ farmer.id }}"
+                                   value="{{ supply.cow_qty if supply and supply.cow_qty is not none else 0 }}"
+                                   class="form-control">
+                            <span class="input-group-text text-primary" id="cow_rate_{{ farmer.id }}">₹{{ farmer.cow_rate | round(2) }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Buffalo Milk (L)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" min="0"
+                                   name="buffalo_{{ farmer.id }}"
+                                   value="{{ supply.buffalo_qty if supply and supply.buffalo_qty is not none else 0 }}"
+                                   class="form-control">
+                            <span class="input-group-text text-success" id="buffalo_rate_{{ farmer.id }}">₹{{ farmer.buffalo_rate | round(2) }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select name="status_{{ farmer.id }}" class="form-select">
+                            <option value="paid" {% if supply and supply.status == 'paid' %}selected{% endif %}>Paid</option>
+                            <option value="partial" {% if supply and supply.status == 'partial' %}selected{% endif %}>Partially Paid</option>
+                            <option value="unpaid" {% if not supply or supply.status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="cow-amt amount-display text-center">
+                    <div class="amount-label">Cow Amt</div>
+                    <div class="amount-value">₹0.00</div>
+                </div>
+                <div class="buffalo-amt amount-display text-center">
+                    <div class="amount-label">Buffalo Amt</div>
+                    <div class="amount-value">₹0.00</div>
+                </div>
+                <div class="total-amt amount-display text-center">
+                    <div class="amount-label">Total</div>
+                    <div class="amount-value">₹0.00</div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">No farmers found. Try adjusting your search.</div>
+        {% endfor %}
+        {% if farmers %}
+        <div class="mt-4 text-end">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save me-2"></i> Save {{ session_name|capitalize }} Supply
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+<script>
+function updateAmounts(farmerId) {
+    const cowInput = document.querySelector(`input[name="cow_${farmerId}"]`);
+    const buffaloInput = document.querySelector(`input[name="buffalo_${farmerId}"]`);
+    if (!cowInput || !buffaloInput) return;
+    const cowRateElem = document.getElementById(`cow_rate_${farmerId}`);
+    const buffaloRateElem = document.getElementById(`buffalo_rate_${farmerId}`);
+    if (!cowRateElem || !buffaloRateElem) return;
+    const cowRate = parseFloat(cowRateElem.textContent.replace('₹', '').trim()) || 0;
+    const buffaloRate = parseFloat(buffaloRateElem.textContent.replace('₹', '').trim()) || 0;
+    const cowQty = parseFloat(cowInput.value) || 0;
+    const buffaloQty = parseFloat(buffaloInput.value) || 0;
+    const cowAmt = cowQty * cowRate;
+    const buffaloAmt = buffaloQty * buffaloRate;
+    const totalAmt = cowAmt + buffaloAmt;
+    const cardFooter = cowInput.closest('.supply-card').querySelector('.card-footer');
+    if (!cardFooter) return;
+    // Use explicit selectors for each amount
+    const cowAmtElem = cardFooter.querySelector('.cow-amt .amount-value');
+    const buffaloAmtElem = cardFooter.querySelector('.buffalo-amt .amount-value');
+    const totalAmtElem = cardFooter.querySelector('.total-amt .amount-value');
+    if (cowAmtElem) cowAmtElem.textContent = `₹${cowAmt.toFixed(2)}`;
+    if (buffaloAmtElem) buffaloAmtElem.textContent = `₹${buffaloAmt.toFixed(2)}`;
+    if (totalAmtElem) totalAmtElem.textContent = `₹${totalAmt.toFixed(2)}`;
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    {% for farmer in farmers %}
+        const farmerId = "{{ farmer.id }}";
+        const cowInput = document.querySelector(`input[name="cow_{{ farmer.id }}"]`);
+        const buffaloInput = document.querySelector(`input[name="buffalo_{{ farmer.id }}"]`);
+        if (cowInput && buffaloInput) {
+            cowInput.addEventListener('input', () => updateAmounts(farmerId));
+            buffaloInput.addEventListener('input', () => updateAmounts(farmerId));
+            updateAmounts(farmerId);  // Run once on page load to initialize amounts
+        }
+    {% endfor %}
+});
+</script>
+{% endblock %}

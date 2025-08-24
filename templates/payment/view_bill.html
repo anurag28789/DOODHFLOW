@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Bill</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 280px; /* Adjust this width to match your printer's paper roll */
+            margin: 0 auto;
+            padding: 10px;
+            color: #000;
+            background-color: #fff;
+        }
+        .header, .footer {
+            text-align: center;
+        }
+        .item-line {
+            display: flex;
+            justify-content: space-between;
+        }
+        .separator {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+        }
+        .total {
+            text-align: right;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .action-button {
+            width: 48%;
+            padding: 10px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+        .print-btn {
+             background-color: #4CAF50; /* Green */
+        }
+        .back-btn {
+            background-color: #6c757d; /* Grey */
+        }
+        p {
+            margin: 5px 0;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            body {
+                width: auto; /* Let the printer control the width */
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body> {% if payment %}
+    {% set req = payment.requirement %}
+    {% set cow_total = (req.cow_qty or 0) * (req.cow_rate_at_order or 0) %}
+    {% set buffalo_total = (req.buffalo_qty or 0) * (req.buffalo_rate_at_order or 0) %}
+    {% set grand_total = cow_total + buffalo_total %}
+
+    <div class="header">
+        <h3>DoodhFlow</h3>
+        <p>Payment Receipt</p>
+    </div>
+    <div class="separator"></div>
+    <p>Invoice #: {{ payment.id }}</p>
+    <p>Date: {{ payment.bill_date.strftime('%d-%m-%y %H:%M') }}</p>
+    <p>Customer: {{ payment.customer.name }}</p>
+    <div class="separator"></div>
+
+    {% if req.cow_qty > 0 %}
+        <p><strong>Cow Milk</strong></p>
+        <div class="item-line">
+            <span>{{ req.cow_qty }}L x {{ "%.2f"|format(req.cow_rate_at_order) }}</span>
+            <span>{{ "%.2f"|format(cow_total) }}</span>
+        </div>
+    {% endif %}
+    {% if req.buffalo_qty > 0 %}
+        <p><strong>Buffalo Milk</strong></p>
+        <div class="item-line">
+            <span>{{ req.buffalo_qty }}L x {{ "%.2f"|format(req.buffalo_rate_at_order) }}</span>
+            <span>{{ "%.2f"|format(buffalo_total) }}</span>
+        </div>
+    {% endif %}
+
+    <div class="separator"></div>
+    <p class="total">TOTAL: &nbsp;₹{{ "%.2f"|format(grand_total) }}</p>
+    <div class="separator"></div>
+    <div class="footer">
+        <p>Thank you!</p>
+    </div>
+
+    {% elif supply %}
+    <div class="header">
+        <h3>DoodhFlow</h3>
+        <p>Supply Receipt</p>
+    </div>
+    <div class="separator"></div>
+    <p>Supply #: {{ supply.id }}</p>
+    <p>Date: {{ supply.date.strftime('%d-%m-%Y') }}</p>
+    <p>Farmer: {{ farmer.name }}</p>
+    <div class="separator"></div>
+
+    {% if supply.cow_qty > 0 %}
+        <p><strong>Cow Milk</strong></p>
+        <div class="item-line">
+            <span>{{ supply.cow_qty }} L</span>
+            <span>{{ "%.2f"|format(supply.cow_amount) }}</span>
+        </div>
+    {% endif %}
+    {% if supply.buffalo_qty > 0 %}
+        <p><strong>Buffalo Milk</strong></p>
+        <div class="item-line">
+            <span>{{ supply.buffalo_qty }} L</span>
+            <span>{{ "%.2f"|format(supply.buffalo_amount) }}</span>
+        </div>
+    {% endif %}
+    <div class="separator"></div>
+    <p class="total">TOTAL: &nbsp;₹{{ "%.2f"|format(supply.total_amount) }}</p>
+    <div class="separator"></div>
+    <div class="footer">
+        <p>Payment Recorded.</p>
+    </div>
+    {% endif %}
+
+    <div class="button-container no-print">
+        <button class="action-button print-btn" onclick="window.print()">Print</button>
+        <button class="action-button back-btn" onclick="history.back()">Go Back</button>
+    </div>
+
+</body>
+</html>

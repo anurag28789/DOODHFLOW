@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+<div class="container mt-5" style="max-width: 500px;">
+
+    {# --- THIS IS THE NEW CONDITIONAL LOGIC --- #}
+    {% if show_reactivate %}
+
+        <!-- Reactivation Panel -->
+        <div class="card text-center border-warning shadow-sm">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Account Deactivated</strong>
+            </div>
+            <div class="card-body">
+                <h4 class="card-title">Welcome back, {{ current_user.username }}</h4>
+                <p class="card-text">Your admin account is currently inactive. To regain full access, you must reactivate it.</p>
+                {% if current_user.deactivation_reason %}
+                    <p class="text-muted border p-2 rounded small">Reason provided: "{{ current_user.deactivation_reason }}"</p>
+                {% endif %}
+                <a href="{{ url_for('admin_reactivate_self') }}" class="btn btn-success btn-lg mt-2">
+                    <i class="fas fa-power-off me-2"></i> Reactivate My Account
+                </a>
+            </div>
+            <div class="card-footer text-muted">
+                <a href="{{ url_for('logout') }}">Log out</a>
+            </div>
+        </div>
+
+    {% else %}
+
+        <!-- Standard Login Form -->
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h3 class="card-title text-center mb-4">Login</h3>
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control") }}
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    {% endif %}
+    {# --- END OF CONDITIONAL LOGIC --- #}
+
+</div>
+{% endblock %}

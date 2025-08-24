@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action or "Customer Form" }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h2 class="mb-0">{{ action or "Customer Form" }}</h2>
+        </div>
+        <div class="card-body">
+          <form method="POST" novalidate>
+            {{ form.hidden_tag() }}
+
+            <!-- Personal Details -->
+            <h5 class="mb-3">Personal Details</h5>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.name.label(class="form-label") }}
+                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), placeholder="Full Name") }}
+                {% if form.name.errors %}
+                  <div class="invalid-feedback">{{ form.name.errors[0] }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.phone.label(class="form-label") }}
+                {{ form.phone(class="form-control" + (" is-invalid" if form.phone.errors else ""), placeholder="Phone Number") }}
+                {% if form.phone.errors %}
+                  <div class="invalid-feedback">{{ form.phone.errors[0] }}</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="mb-3">
+              {{ form.address.label(class="form-label") }}
+              {{ form.address(class="form-control" + (" is-invalid" if form.address.errors else ""), placeholder="Full Address") }}
+              {% if form.address.errors %}
+                <div class="invalid-feedback">{{ form.address.errors[0] }}</div>
+              {% endif %}
+            </div>
+
+            <hr class="my-4">
+
+            <!-- Milk Rates -->
+            <h5 class="mb-3">Milk Rates</h5>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.cow_rate.label(class="form-label") }}
+                {% if current_user.role in ['admin', 'milkman'] %}
+                  {{ form.cow_rate(class="form-control") }}
+                {% else %}
+                  {{ form.cow_rate(class="form-control", readonly=True) }}
+                {% endif %}
+                <div class="form-text">Rates are set by your milkman.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.buffalo_rate.label(class="form-label") }}
+                {% if current_user.role in ['admin', 'milkman'] %}
+                  {{ form.buffalo_rate(class="form-control") }}
+                {% else %}
+                  {{ form.buffalo_rate(class="form-control", readonly=True) }}
+                {% endif %}
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- Account Settings -->
+            <h5 class="mb-3">Account Settings</h5>
+            <div class="mb-3">
+              {{ form.username.label(class="form-label") }}
+              {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="Username") }}
+              {% if form.username.errors %}
+                <div class="invalid-feedback">{{ form.username.errors[0] }}</div>
+              {% endif %}
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Password", autocomplete="new-password") }}
+                {% if form.password.errors %}
+                  <div class="invalid-feedback">{{ form.password.errors[0] }}</div>
+                {% else %}
+                  <div class="form-text">Leave blank if you don’t want to change it.</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.confirm_password.label(class="form-label") }}
+                {{ form.confirm_password(class="form-control" + (" is-invalid" if form.confirm_password.errors else ""), placeholder="Confirm Password", autocomplete="new-password") }}
+                {% if form.confirm_password.errors %}
+                  <div class="invalid-feedback">{{ form.confirm_password.errors[0] }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex justify-content-end mt-4">
+              <a href="{% if current_user.role in ['milkman', 'admin'] %}{{ url_for('manage_customers') }}{% else %}{{ url_for('customer_dashboard') }}{% endif %}" class="btn btn-outline-secondary me-2">Cancel</a>
+              <button type="submit" class="btn btn-primary">{{ form.submit.label.text if form.submit.label.text else "Save" }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

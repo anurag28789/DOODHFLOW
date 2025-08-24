@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Report an Issue{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Report an Issue</h2>
+    <form method="post" action="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+            <label for="issue" class="form-label">Describe your issue or feedback:</label>
+            <textarea id="issue" name="issue" class="form-control" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Customer Dashboard{% endblock %}
+{% block content %}
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet"/>
+
+<style>
+    body {
+        background-color: #f8fafc;
+    }
+
+    .profile-header {
+        background: linear-gradient(45deg, #0d6efd, #6c757d); /* blue gradient */
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+    }
+
+    .profile-header h1 {
+        font-weight: 700;
+    }
+
+    .profile-meta span {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 1.5rem;
+        opacity: 0.9;
+    }
+
+    .profile-meta .badge {
+        font-size: 0.9em;
+    }
+
+    .stat-card {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        text-align: center;
+        height: 100%;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+
+    .stat-card .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #0d6efd;  /* blue */
+    }
+
+    .stat-card .card-title {
+        color: #6c757d;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+
+    .stat-card .stat-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .stat-card .rate-value {
+        font-size: 1.25rem;
+        font-weight: 500;
+    }
+
+    .action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        color: #212529;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(13,110,253,0.13);
+        color: #0d6efd;
+    }
+
+    .action-card .action-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+        color: #0d6efd;
+    }
+
+    .action-card .action-title {
+        font-weight: 500;
+    }
+</style>
+
+<div class="container">
+
+    <div class="profile-header">
+        <h1>Welcome, {{ current_user.name }}</h1>
+        <div class="profile-meta mt-2">
+            <span><i class="fas fa-phone-alt fa-fw me-2"></i>{{ profile.phone }}</span>
+            <span><i class="fas fa-map-marker-alt fa-fw me-2"></i>{{ profile.address }}</span>
+            <span><i class="fas fa-user-tie fa-fw me-2"></i>Milkman: {{ profile.milkman or 'Not assigned' }}</span>
+            <span>
+                <i class="fas fa-check-circle fa-fw me-2"></i>Status:
+                <span class="badge {{ 'bg-primary' if profile.active else 'bg-danger' }}">
+                    {{ 'Active' if profile.active else 'Inactive' }}
+                </span>
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-tint"></i></div>
+                <h5 class="card-title">Today’s Milk Ordered</h5>
+                <p class="stat-value">{{ today_supply }} <span class="fs-6 text-muted">Litres</span></p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                <h5 class="card-title">Due This Month</h5>
+                <p class="stat-value">₹{{ "%.2f"|format(due_this_month) }}</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-tags"></i></div>
+                <h5 class="card-title">Current Rates</h5>
+                <div class="rate-value">
+                    Cow: ₹{{ profile.cow_rate }}/L<br>
+                    Buffalo: ₹{{ profile.buffalo_rate }}/L
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3>Action Center</h3>
+    <div class="row g-4">
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('customer_order_history_view') }}" class="action-card">
+                <div class="action-icon"><i class="fas fa-history"></i></div>
+                <span class="action-title">Order History</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('customer_profile') }}" class="action-card">
+                <div class="action-icon"><i class="fas fa-user-edit"></i></div>
+                <span class="action-title">Edit Profile</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('customer_contact_milkman') }}" class="action-card">
+                <div class="action-icon"><i class="fas fa-comments"></i></div>
+                <span class="action-title">Contact Milkman</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('customer_report_issue') }}" class="action-card">
+                <div class="action-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <span class="action-title">Report Issue</span>
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

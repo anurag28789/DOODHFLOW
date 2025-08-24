@@ -1,0 +1,94 @@
+{% if summaries %}
+<div class="table-responsive mt-3">
+  <table class="table table-striped table-bordered align-middle">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Session</th>
+        <th>Cow Qty</th>
+        <th>Buffalo Qty</th>
+        <th>Order Type</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for summary in summaries %}
+        {% set req = summary.order %}
+        {% set total_payment = summary.total_payment %}
+        {% set total_due = summary.total_due %}
+
+        <tr>
+          <td>{{ req.date_requested.strftime('%d-%b-%Y') }}</td>
+          <td class="text-capitalize">{{ req.session }}</td>
+          <td>{{ req.cow_qty }} L</td>
+          <td>{{ req.buffalo_qty }} L</td>
+          <td>
+            {% if req.is_recurring %}
+              <span class="badge bg-info">Recurring</span>
+            {% else %}
+              <span class="badge bg-secondary">Single</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge
+              {% if req.status|lower == 'pending' %}bg-warning text-dark
+              {% elif req.status|lower == 'approved' %}bg-primary
+              {% elif req.status|lower == 'delivered' %}
+                {% if total_payment >= total_due and total_due > 0 %}bg-success
+                {% else %}bg-info
+                {% endif %}
+              {% else %}bg-secondary
+              {% endif %}">
+              {{ req.status|title }}
+            </span>
+          </td>
+          <td>
+            {# --- SMART ACTIONS COLUMN --- #}
+            {# Check if the current user is an admin or milkman #}
+            {% if current_user.role in ['admin', 'milkman'] %}
+
+              {# --- Admin/Milkman Buttons --- #}
+              {% if req.status.lower() == 'pending' %}
+                <form method="POST" action="{{ url_for('approve_order', order_id=req.id) }}" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                </form>
+              {% elif req.status.lower() == 'approved' %}
+                <form method="POST" action="{{ url_for('mark_order_delivered', order_id=req.id) }}" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-info">Mark Delivered</button>
+                </form>
+              {% elif req.status.lower() == 'delivered' %}
+                 <a href="{{ url_for('record_payment', requirement_id=req.id) }}" class="btn btn-sm btn-success">Record Payment</a>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+
+            {% else %}
+
+              {# --- Customer Buttons --- #}
+              {% if req.status|lower == 'pending' %}
+                <form method="POST" action="{{ url_for('cancel_order', req_id=req.id) }}" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to cancel this order?');">Cancel</button>
+                </form>
+              {% elif req.status|lower == 'paid' or (req.status|lower == 'delivered' and total_payment >= total_due and total_due > 0) %}
+                {% if req.payments|length > 0 %}
+                  <a href="{{ url_for('view_bill', payment_id=req.payments[0].id) }}"
+                     class="btn btn-sm btn-outline-primary" target="_blank">View Bill</a>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p class="text-muted mt-3">No orders in this section.</p>
+{% endif %}

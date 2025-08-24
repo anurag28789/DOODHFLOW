@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Current Orders for {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h2>Current Orders - {{ customer.name }}</h2>
+  <a href="{{ url_for('manage_customers') }}" class="btn btn-secondary mb-3">Back to Customers</a>
+
+  {% if orders %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Date Requested</th>
+          <th>Session</th>  {# ✅ NEW COLUMN #}
+          <th>Cow Qty</th>
+          <th>Buffalo Qty</th>
+          <th>Order Type</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+        <tr>
+          <td>{{ order.date_requested.strftime('%d %b %Y') }}</td>
+          <td class="text-capitalize">{{ order.session }}</td>  {# morning/evening #}
+          <td>{{ order.cow_qty }}</td>
+          <td>{{ order.buffalo_qty }}</td>
+          <td>
+            {% if order.is_recurring %}
+              <span class="badge bg-info">Regular Order</span>
+            {% else %}
+              <span class="badge bg-secondary">One-Time Order</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge
+                  {% if order.status|lower == 'pending' %}bg-warning
+                  {% elif order.status|lower == 'approved' %}bg-success
+                  {% elif order.status|lower == 'delivered' %}bg-primary
+                  {% elif order.status|lower == 'rejected' %}bg-danger
+                  {% else %}bg-secondary
+                  {% endif %}">
+              {{ order.status.capitalize() }}
+            </span>
+          </td>
+          <td>
+            {% if order.status|lower == 'pending' %}
+              <form method="POST" action="{{ url_for('approve_requirement', req_id=order.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-success">Approve</button>
+              </form>
+              <form method="POST" action="{{ url_for('reject_requirement', req_id=order.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-danger">Reject</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No current orders found.</p>
+  {% endif %}
+</div>
+{% endblock %}

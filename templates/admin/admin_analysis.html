@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Business Analysis{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    body { background-color: #f8f9fa; }
+    .page-header { border-bottom: 1px solid #dee2e6; padding-bottom: 1rem; }
+
+    /* --- Improved Card Styles --- */
+    .card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.05);
+        height: 100%;
+    }
+    .leaderboard-card .card-header, .chart-card .card-header {
+        background-color: #fff;
+        border-bottom: 1px solid #f0f0f0;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    /* --- Enhanced Stat Card --- */
+    .stat-card {
+        text-align: center;
+        transition: all 0.2s ease-in-out;
+        border-top: 4px solid;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+    .stat-card .card-title {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+    .stat-card .stat-value { font-size: 2.25rem; font-weight: 700; }
+    .stat-card .percent-change { font-size: 0.9rem; font-weight: 600; }
+    .percent-up { color: #198754; }
+    .percent-down { color: #dc3545; }
+
+    /* Color-coded borders for stat cards */
+    .border-success { border-top-color: #198754 !important; }
+    .border-danger { border-top-color: #dc3545 !important; }
+    .border-primary { border-top-color: #0d6efd !important; }
+    .border-info { border-top-color: #0dcaf0 !important; }
+    .border-warning { border-top-color: #ffc107 !important; }
+
+    /* --- Responsive Chart Container (FIX) --- */
+    .chart-container {
+        position: relative;
+        height: 350px; /* Maintain height */
+        width: 100%;   /* Allow width to be flexible */
+    }
+</style>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+        <div>
+            <h2 class="mb-0">Business Analysis</h2>
+            <p class="text-muted mb-0">Viewing data from {{ start_date.strftime('%d-%b-%Y') }} to {{ end_date.strftime('%d-%b-%Y') }}</p>
+        </div>
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date.strftime('%Y-%m-%d') }}" />
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date.strftime('%Y-%m-%d') }}" />
+                </div>
+                {% if current_user.role == 'admin' %}
+                <div class="col-md-4">
+                    <label for="milkman_id" class="form-label">Filter by Milkman</label>
+                    <select name="milkman_id" id="milkman_id" class="form-select">
+                        <option value="">All Milkmen</option>
+                        {% for milkman in milkmen %}
+                        <option value="{{ milkman.id }}" {% if milkman.id == selected_milkman_id %}selected{% endif %}>{{ milkman.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-4 text-center">
+        <div class="col-12 col-md-4 col-lg-2">
+            <div class="card stat-card border-success">
+                <div class="card-body">
+                    <h5 class="card-title">Total Revenue</h5>
+                    <div class="stat-value">₹{{ revenue_current|round(0) | default(0) }}</div>
+                    {% if revenue_percent_change is not none %}
+                    <span class="percent-change {{ 'percent-up' if revenue_percent_change > 0 else 'percent-down' }}">
+                        {{ '+' if revenue_percent_change > 0 else '' }}{{ revenue_percent_change }}%
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4 col-lg-2">
+            <div class="card stat-card border-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Total Payouts</h5>
+                    <div class="stat-value">₹{{ farmer_payouts|round(0) | default(0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4 col-lg-2">
+            <div class="card stat-card border-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Net Profit</h5>
+                    <div class="stat-value">₹{{ (revenue_current - farmer_payouts)|round(0) | default(0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-2">
+            <div class="card stat-card border-info">
+                <div class="card-body">
+                    <h5 class="card-title">Milk Transacted</h5>
+                    <div class="stat-value">{{ total_milk_transacted|round(0) | default(0) }} <small>L</small></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-2">
+            <div class="card stat-card border-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Due to Pay</h5>
+                    <div class="stat-value">₹{{ remaining_due_pay|round(0) | default(0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-2">
+            <div class="card stat-card border-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Due to Collect</h5>
+                    <div class="stat-value">₹{{ remaining_to_collect|round(0) | default(0) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card chart-card">
+                <div class="card-header">📊 Monthly Financials</div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="financialsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card chart-card">
+                <div class="card-header">💧 Monthly Milk Flow</div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="milkFlowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card leaderboard-card">
+                <div class="card-header"><i class="fas fa-trophy text-warning me-2"></i>Top 5 Customers</div>
+                <ul class="list-group list-group-flush">
+                    {% for customer in top_customers %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ loop.index }}. {{ customer.name }}</span>
+                        <span class="badge bg-primary rounded-pill fs-6">₹{{ customer.total_spent|round(0) | default(0) }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No customer data in this period.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card leaderboard-card">
+                <div class="card-header"><i class="fas fa-medal text-info me-2"></i>Top 5 Farmers</div>
+                <ul class="list-group list-group-flush">
+                    {% for farmer in top_farmers %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ loop.index }}. {{ farmer.name }}</span>
+                        <span class="badge bg-info rounded-pill fs-6">{{ farmer.total_supplied|round(0) | default(0) }} L</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No farmer data in this period.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // --- CORRECTED: Set responsive to true to fix chart sizing ---
+    Chart.defaults.responsive = true;
+    Chart.defaults.maintainAspectRatio = false;
+
+    const financialsChartCtx = document.getElementById('financialsChart').getContext('2d');
+    const financialsChart = new Chart(financialsChartCtx, {
+        type: 'line',
+        data: {
+            labels: {{ revenue_data | map(attribute='month') | list | tojson }},
+            datasets: [{
+                label: 'Revenue',
+                data: {{ revenue_data | map(attribute='revenue') | list | tojson }},
+                borderColor: 'rgba(13,110,253,1)',
+                backgroundColor: 'rgba(13,110,253,0.1)',
+                fill: true
+            },
+            {
+                label: 'Payout',
+                data: {{ revenue_data | map(attribute='payout') | list | tojson }},
+                borderColor: 'rgba(220,53,69,1)',
+                backgroundColor: 'rgba(220,53,69,0.1)',
+                fill: true
+            }]
+        }
+    });
+
+    const milkFlowChartCtx = document.getElementById('milkFlowChart').getContext('2d');
+    const milkFlowChart = new Chart(milkFlowChartCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ milk_flow_data | map(attribute='month') | list | tojson }},
+            datasets: [{
+                label: 'Milk Procured',
+                data: {{ milk_flow_data | map(attribute='procured') | list | tojson }},
+                backgroundColor: 'rgba(40,167,69,0.7)'
+            },
+            {
+                label: 'Milk Sold',
+                data: {{ milk_flow_data | map(attribute='sold') | list | tojson }},
+                backgroundColor: 'rgba(0,123,255,0.7)'
+            }]
+        }
+    });
+});
+</script>
+{% endblock %}

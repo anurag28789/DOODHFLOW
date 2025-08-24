@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Payment History{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Payment History</h2>
+    {% if payments %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Bill Date</th>
+                <th>Amount Paid (₹)</th>
+                <th>Payment Mode</th>
+                <th>Remarks</th>
+                <th>View Bill</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.bill_date.strftime('%d-%b-%Y') }}</td>
+                <td>{{ payment.amount }}</td>
+                <td>{{ payment.payment_mode }}</td>
+                <td>{{ payment.remarks or '' }}</td>
+                <td><a href="{{ url_for('view_bill', payment_id=payment.id) }}" target="_blank" class="btn btn-sm btn-primary">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No payment records found.</p>
+    {% endif %}
+</div>
+{% endblock %}

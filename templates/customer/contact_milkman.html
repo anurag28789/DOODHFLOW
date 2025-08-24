@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Milkman{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h2>Contact Your Milkman</h2>
+
+  <div class="card p-4 shadow-sm">
+    <h4>{{ milkman.name or milkman.username }}</h4>
+    <p><strong>Phone:</strong> {{ milkman.phone or 'Not provided' }}</p>
+    <p><strong>Email:</strong> {{ milkman.email or 'Not provided' }}</p>
+
+    <!-- Add more contact info or instructions here -->
+
+    <a href="{{ url_for('customer_dashboard') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

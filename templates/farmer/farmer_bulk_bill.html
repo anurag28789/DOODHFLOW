@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Payment Bill – {{ farmer.name }}{% endblock %}
+{% block content %}
+<h2>Payment Bill for {{ farmer.name }}</h2>
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Session</th>
+      <th>Cow Milk (L)</th>
+      <th>Buffalo Milk (L)</th>
+      <th>Total (₹)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in supplies %}
+    <tr>
+      <td>{{ s.date.strftime('%Y-%m-%d') }}</td>
+      <td>{{ s.session|capitalize }}</td>
+      <td>{{ s.cow_qty }}</td>
+      <td>{{ s.buffalo_qty }}</td>
+      <td>{{ s.total_amount }}</td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td colspan="4"><strong>Total Amount</strong></td>
+      <td><strong>₹{{ total_amount }}</strong></td>
+    </tr>
+  </tbody>
+</table>
+<a href="{{ url_for('farmer_history', farmer_id=farmer.id) }}" class="btn btn-secondary">Back to History</a>
+{% endblock %}

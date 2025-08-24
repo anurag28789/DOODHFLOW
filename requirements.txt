@@ -1,0 +1,7 @@
+Flask
+Flask-Login
+Flask-Bootstrap
+Flask-WTF
+Flask-SQLAlchemy
+WTForms
+passlib
