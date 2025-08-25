@@ -17,6 +17,8 @@ from datetime import datetime, date, timedelta
 import io
 import csv
 import calendar
+import atexit
+from apscheduler.schedulers.background import BackgroundScheduler
 import os
 from os import path
 from functools import wraps
@@ -1675,7 +1677,7 @@ def milk_rates():
 
     selected_type = request.args.get('type', 'customer')
     selected_id = request.args.get('id')
-    # Validate selected_id, allow 'all' or int
+    
     if selected_id is not None and selected_id != 'all':
         try:
             selected_id = int(selected_id)
@@ -1693,12 +1695,12 @@ def milk_rates():
     form = MilkRateForm()
     form.for_group.choices = [('customer', 'Customer'), ('farmer', 'Farmer')]
 
-    # Pre-select group if no form data yet
     if not form.for_group.data:
         form.for_group.data = selected_type
 
     if form.validate_on_submit():
         if selected_id == 'all':
+            updated_entities = []
             if form.for_group.data == 'customer':
                 all_customers = Customer.query.all()
                 for customer in all_customers:
@@ -1711,10 +1713,10 @@ def milk_rates():
                         date_effective=form.date_effective.data
                     )
                     db.session.add(new_rate)
-                    # Update current rates only if effective date is today or earlier
                     if form.date_effective.data <= date.today():
                         customer.cow_rate = form.cow_rate.data
                         customer.buffalo_rate = form.buffalo_rate.data
+                    updated_entities.append({'name': customer.name, 'phone': customer.phone})
             else:  # farmer
                 all_farmers = Farmer.query.all()
                 for farmer in all_farmers:
@@ -1730,8 +1732,20 @@ def milk_rates():
                     if form.date_effective.data <= date.today():
                         farmer.cow_rate = form.cow_rate.data
                         farmer.buffalo_rate = form.buffalo_rate.data
+                    updated_entities.append({'name': farmer.name, 'phone': farmer.phone})
 
             db.session.commit()
+
+            session['updated_rate_info_bulk'] = [
+                {
+                    'name': entity['name'],
+                    'phone': entity['phone'],
+                    'cow_rate': form.cow_rate.data,
+                    'buffalo_rate': form.buffalo_rate.data,
+                    'date_effective': form.date_effective.data.strftime('%d-%b-%Y')
+                } for entity in updated_entities
+            ]
+
             flash(f"Bulk rate update applied to all {form.for_group.data}s.", "success")
             return redirect(url_for('milk_rates', type=selected_type, id='all'))
 
@@ -1745,23 +1759,48 @@ def milk_rates():
                 date_effective=form.date_effective.data
             )
 
+            entity_info = None
             if form.for_group.data == 'customer':
                 new_rate.customer_id = selected_id
                 customer = Customer.query.get(selected_id)
-                if customer and form.date_effective.data <= date.today():
-                    customer.cow_rate = form.cow_rate.data
-                    customer.buffalo_rate = form.buffalo_rate.data
+                if customer:
+                    entity_info = {'name': customer.name, 'phone': customer.phone}
+                    if form.date_effective.data <= date.today():
+                        customer.cow_rate = form.cow_rate.data
+                        customer.buffalo_rate = form.buffalo_rate.data
             else:
                 new_rate.farmer_id = selected_id
                 farmer = Farmer.query.get(selected_id)
-                if farmer and form.date_effective.data <= date.today():
-                    farmer.cow_rate = form.cow_rate.data
-                    farmer.buffalo_rate = form.buffalo_rate.data
+                if farmer:
+                    entity_info = {'name': farmer.name, 'phone': farmer.phone}
+                    if form.date_effective.data <= date.today():
+                        farmer.cow_rate = form.cow_rate.data
+                        farmer.buffalo_rate = form.buffalo_rate.data
 
             db.session.add(new_rate)
             db.session.commit()
+
+            if entity_info:
+                session['updated_rate_info'] = {
+                    'name': entity_info['name'],
+                    'phone': entity_info['phone'],
+                    'cow_rate': form.cow_rate.data,
+                    'buffalo_rate': form.buffalo_rate.data,
+                    'date_effective': form.date_effective.data.strftime('%d-%b-%Y')
+                }
+
             flash("Milk rate updated successfully.", "success")
             return redirect(url_for('milk_rates', type=selected_type, id=selected_id))
+
+    updated_rate_info = session.pop('updated_rate_info', None)
+    updated_rate_info_bulk = session.pop('updated_rate_info_bulk', None)
+    
+    all_entities = []
+    if selected_id == 'all':
+        if selected_type == 'customer':
+            all_entities = customers
+        else:
+            all_entities = farmers
 
     return render_template(
         'milk_rates.html',
@@ -1770,7 +1809,57 @@ def milk_rates():
         farmers=farmers,
         rates=rates,
         selected_type=selected_type,
-        selected_id=selected_id
+        selected_id=selected_id,
+        updated_rate_info=updated_rate_info,
+        updated_rate_info_bulk=updated_rate_info_bulk,
+        all_entities=all_entities,
+        today_date=date.today().strftime('%Y-%m-%d')
+    )
+
+@app.route('/download_rates/<type>/<date_str>')
+@login_required
+def download_rates(type, date_str):
+    if current_user.role not in ['milkman', 'admin']:
+        flash("Access denied.", "danger")
+        return redirect(url_for('home'))
+
+    try:
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash("Invalid date format.", "danger")
+        return redirect(url_for('milk_rates'))
+
+    if type == 'customer':
+        entities = Customer.query.order_by(Customer.name).all()
+    elif type == 'farmer':
+        entities = Farmer.query.order_by(Farmer.name).all()
+    else:
+        flash("Invalid type.", "danger")
+        return redirect(url_for('milk_rates'))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    header = ['Name', 'Cow Milk Rate (₹/L)', 'Buffalo Milk Rate (₹/L)']
+    writer.writerow(header)
+
+    for entity in entities:
+        rate = MilkRate.query.filter(
+            MilkRate.date_effective <= selected_date,
+            (MilkRate.customer_id == entity.id) if type == 'customer' else (MilkRate.farmer_id == entity.id)
+        ).order_by(MilkRate.date_effective.desc()).first()
+        
+        cow_rate = rate.cow_rate if rate else entity.cow_rate
+        buffalo_rate = rate.buffalo_rate if rate else entity.buffalo_rate
+        
+        writer.writerow([entity.name, f'{cow_rate:.2f}', f'{buffalo_rate:.2f}'])
+
+    output.seek(0)
+
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename={type}_rates_{date_str}.csv"}
     )
 
 # ------------------------
@@ -2310,12 +2399,59 @@ def toggle_milkman_status(user_id):
     flash(f'Account for {user.username} has been {"activated" if user.is_active_admin else "deactivated"}.', 'info')
     return redirect(url_for('manage_milkmen'))
 
+def apply_future_rates():
+    """
+    Job to apply milk rates that are due to become effective today.
+    """
+    with app.app_context():
+        today = date.today()
+        print(f"[{datetime.now()}] Running scheduled job: Applying milk rates for {today.strftime('%Y-%m-%d')}")
 
+        rates_to_update = MilkRate.query.filter_by(date_effective=today).all()
+        if not rates_to_update:
+            print("No new milk rates to apply today.")
+            return
+
+        customer_rates = {}
+        farmer_rates = {}
+
+        for rate in rates_to_update:
+            if rate.for_group == 'customer' and rate.customer_id:
+                # If multiple rates for the same customer, last one wins
+                customer_rates[rate.customer_id] = (rate.cow_rate, rate.buffalo_rate)
+            elif rate.for_group == 'farmer' and rate.farmer_id:
+                farmer_rates[rate.farmer_id] = (rate.cow_rate, rate.buffalo_rate)
+
+        if customer_rates:
+            for customer_id, (cow_rate, buffalo_rate) in customer_rates.items():
+                customer = Customer.query.get(customer_id)
+                if customer:
+                    customer.cow_rate = cow_rate
+                    customer.buffalo_rate = buffalo_rate
+                    print(f"Updated rates for Customer {customer.id} ({customer.name})")
+
+        if farmer_rates:
+            for farmer_id, (cow_rate, buffalo_rate) in farmer_rates.items():
+                farmer = Farmer.query.get(farmer_id)
+                if farmer:
+                    farmer.cow_rate = cow_rate
+                    farmer.buffalo_rate = buffalo_rate
+                    print(f"Updated rates for Farmer {farmer.id} ({farmer.name})")
+
+        db.session.commit()
+        print(f"Successfully applied {len(rates_to_update)} new milk rates.")
 
 # ------------------------
 # Run App
 # ------------------------
 if __name__ == '__main__':
+    scheduler = BackgroundScheduler(daemon=True)
+    # Schedule job to run daily at 5:30 AM
+    scheduler.add_job(apply_future_rates, 'cron', hour=5, minute=30)
+    scheduler.start()
+    # Shut down the scheduler when exiting the app
+    atexit.register(lambda: scheduler.shutdown())
+
     with app.app_context():
         db.create_all()
     app.run(debug=True)
