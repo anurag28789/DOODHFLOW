@@ -3,9 +3,15 @@
 
 {% block content %}
 <style>
-    /* Custom styles for a modern, clean look */
     body {
         background-color: #f8f9fa;
+    }
+    .profile-header {
+        background: linear-gradient(45deg, #198754, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
     }
     .nav-pills .nav-link {
         color: #6c757d;
@@ -20,6 +26,7 @@
         border: 1px solid #e9ecef;
         border-radius: 0.75rem;
         background-color: #fff;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
     .farmer-card:hover {
         transform: translateY(-5px);
@@ -34,27 +41,21 @@
     .table-hover tbody tr:hover {
         background-color: #eef5ff;
     }
-    .page-header {
-        border-bottom: 1px solid #dee2e6;
-        padding-bottom: 1rem;
-    }
 </style>
 
-<!-- Font Awesome for icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+    <div class="profile-header d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="mb-0">Farmer Management</h2>
-            <p class="text-muted mb-0">Oversee farmers and manage milk collection.</p>
+            <h2 class="mb-1">Farmer Management</h2>
+            <p class="mb-0">Oversee farmers and manage milk collection.</p>
         </div>
-        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
             <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
         </a>
     </div>
 
-    <!-- Tab Navigation -->
     <ul class="nav nav-pills mb-4">
         <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'manage_farmers' %}active{% endif %}" href="{{ url_for('manage_farmers') }}">
@@ -73,7 +74,6 @@
         </li>
     </ul>
 
-    <!-- Farmers List (Card View) -->
     {% if request.endpoint == 'manage_farmers' %}
         <div class="row mb-4">
             <div class="col-md-8">

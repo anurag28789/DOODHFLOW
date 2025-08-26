@@ -285,3 +285,29 @@ class UserForm(FlaskForm):
     role = SelectField('Role', choices=[('milkman', 'Milkman'), ('admin', 'Admin')], validators=[DataRequired()])
     is_active_admin = BooleanField('Is Active', default=True)
     submit = SubmitField('Save User')
+
+class ExpenseForm(FlaskForm):
+    expense_type = SelectField(
+        "Expense Type",
+        choices=[
+            ('Fuel', 'Fuel'),
+            ('Vehicle Maintenance', 'Vehicle Maintenance'),
+            ('Packaging', 'Packaging'),
+            ('Other', 'Other')
+        ],
+        validators=[DataRequired()]
+    )
+    amount = FloatField("Amount (₹)", validators=[DataRequired(), NumberRange(min=0)])
+    remarks = StringField("Remarks", validators=[Optional(), Length(max=255)])
+    submit_expense = SubmitField("Add Expense")
+
+class CasualSaleForm(FlaskForm):
+    session = SelectField(
+        "Session",
+        choices=[('morning', 'Morning'), ('evening', 'Evening')],
+        validators=[DataRequired()]
+    )
+    cow_qty = FloatField("Cow Milk (L)", validators=[Optional(), NumberRange(min=0)], default=0.0)
+    buffalo_qty = FloatField("Buffalo Milk (L)", validators=[Optional(), NumberRange(min=0)], default=0.0)
+    amount_collected = FloatField("Amount Collected (₹)", validators=[DataRequired(), NumberRange(min=0)])
+    submit_sale = SubmitField("Add Sale")

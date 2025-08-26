@@ -25,13 +25,13 @@ from functools import wraps
 
 from models import (
     User, Customer, Requirement,
-    Farmer, Payment, MilkRate, Collection
+    Farmer, Payment, MilkRate, Collection, Expense, CasualSale
 )
 
 from forms import (
     CustomerForm, CustomerLoginForm, RequirementForm,
     FarmerForm, MilkRateForm, AdminDeactivationForm,
-    PaymentForm, UserForm, MilkmanProfileForm
+    PaymentForm, UserForm, MilkmanProfileForm, ExpenseForm, CasualSaleForm
 )
 
 from db import db  # Your database instance
@@ -2035,16 +2035,8 @@ def milkman_dashboard():
     today = date.today()
     milkman_id = current_user.id
 
-    total_customers = Customer.query.filter_by(milkman_id=milkman_id).count()
-    pending_requests = (
-        Requirement.query
-        .join(Customer)
-        .filter(
-            Customer.milkman_id == milkman_id,
-            Requirement.status == 'pending',
-            Requirement.date_requested == today
-        ).count()
-    )
+    active_customers = Customer.query.filter_by(milkman_id=milkman_id, active=True).count()
+    active_farmers = Farmer.query.filter_by(milkman_id=milkman_id, active=True).count()
 
     def requirement_sum(milk_type, session_name):
         return (
@@ -2090,8 +2082,8 @@ def milkman_dashboard():
     return render_template(
         "admin/dashboard_milkman.html",
         form=form,  # AND ADD THIS LINE 👇 to pass the form
-        total_customers=total_customers,
-        pending_requests=pending_requests,
+        active_customers=active_customers,
+        active_farmers=active_farmers,
         today=today,
 
         total_cow_required_morning=total_cow_required_morning,
@@ -2130,6 +2122,8 @@ def milkman_profile():
         return redirect(url_for('milkman_dashboard'))
 
     return render_template('admin/milkman_profile.html', form=form)
+
+
 # ------------------------
 # Admin self activation/deactivation
 # ------------------------
@@ -2203,10 +2197,15 @@ def admin_analysis():
                 query = query.filter(Customer.milkman_id == milkman_id)
             elif model == 'farmer':
                 query = query.filter(Farmer.milkman_id == milkman_id)
+            elif model == 'casual_sale':
+                query = query.filter(CasualSale.milkman_id == milkman_id)
+            elif model == 'expense':
+                query = query.filter(Expense.milkman_id == milkman_id)
         return query
 
+
     def get_revenue(s, e):
-        query = db.session.query(
+        req_query = db.session.query(
             func.coalesce(func.sum(
                 Requirement.cow_qty * Requirement.cow_rate_at_order +
                 Requirement.buffalo_qty * Requirement.buffalo_rate_at_order), 0)
@@ -2214,8 +2213,17 @@ def admin_analysis():
             Requirement.status == 'paid',
             Requirement.date_requested.between(s, e)
         )
-        query = apply_milkman_filter(query, 'customer')
-        return float(query.scalar())
+        req_query = apply_milkman_filter(req_query, 'customer')
+        req_revenue = float(req_query.scalar())
+
+        casual_query = db.session.query(
+            func.coalesce(func.sum(CasualSale.amount_collected), 0)
+        ).filter(CasualSale.date.between(s, e))
+        casual_query = apply_milkman_filter(casual_query, 'casual_sale')
+        casual_revenue = float(casual_query.scalar())
+        
+        return req_revenue + casual_revenue
+
 
     revenue_current = get_revenue(start_date, end_date)
     revenue_previous = get_revenue(prev_start_date, prev_end_date)
@@ -2235,6 +2243,14 @@ def admin_analysis():
     )
     payouts_query = apply_milkman_filter(payouts_query, 'farmer')
     farmer_payouts = float(payouts_query.scalar())
+
+    expenses_query = db.session.query(
+        func.coalesce(func.sum(Expense.amount), 0)
+    ).filter(
+        Expense.date.between(start_date, end_date)
+    )
+    expenses_query = apply_milkman_filter(expenses_query, 'expense')
+    total_expenses = float(expenses_query.scalar())
 
     procured_query = db.session.query(
         func.coalesce(func.sum(Collection.cow_qty + Collection.buffalo_qty), 0)
@@ -2318,6 +2334,7 @@ def admin_analysis():
         revenue_previous=revenue_previous,
         revenue_percent_change=revenue_percent_change,
         farmer_payouts=farmer_payouts,
+        total_expenses=total_expenses,
         milk_procured=milk_procured,
         milk_sold=milk_sold,
         remaining_due_pay=remaining_due_pay,
@@ -2398,6 +2415,61 @@ def toggle_milkman_status(user_id):
     db.session.commit()
     flash(f'Account for {user.username} has been {"activated" if user.is_active_admin else "deactivated"}.', 'info')
     return redirect(url_for('manage_milkmen'))
+
+@app.route('/daily_log', methods=['GET', 'POST'])
+@login_required
+def daily_log():
+    if current_user.role not in ['milkman', 'admin']:
+        flash("Access denied.", "danger")
+        return redirect(url_for('home'))
+
+    expense_form = ExpenseForm(prefix='expense')
+    sale_form = CasualSaleForm(prefix='sale')
+
+    selected_date_str = request.args.get('date', date.today().strftime('%Y-%m-%d'))
+    try:
+        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        selected_date = date.today()
+
+    if expense_form.validate_on_submit() and expense_form.submit_expense.data:
+        new_expense = Expense(
+            milkman_id=current_user.id,
+            date=selected_date,
+            expense_type=expense_form.expense_type.data,
+            amount=expense_form.amount.data,
+            remarks=expense_form.remarks.data
+        )
+        db.session.add(new_expense)
+        db.session.commit()
+        flash("Expense recorded successfully.", "success")
+        return redirect(url_for('daily_log', date=selected_date_str))
+
+    if sale_form.validate_on_submit() and sale_form.submit_sale.data:
+        new_sale = CasualSale(
+            milkman_id=current_user.id,
+            date=selected_date,
+            session=sale_form.session.data,
+            cow_qty=sale_form.cow_qty.data,
+            buffalo_qty=sale_form.buffalo_qty.data,
+            amount_collected=sale_form.amount_collected.data
+        )
+        db.session.add(new_sale)
+        db.session.commit()
+        flash("Casual sale recorded successfully.", "success")
+        return redirect(url_for('daily_log', date=selected_date_str))
+
+    expenses = Expense.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
+    casual_sales = CasualSale.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
+
+    return render_template(
+        'admin/daily_log.html',
+        expense_form=expense_form,
+        sale_form=sale_form,
+        expenses=expenses,
+        casual_sales=casual_sales,
+        selected_date=selected_date
+    )
 
 def apply_future_rates():
     """

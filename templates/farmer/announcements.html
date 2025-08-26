@@ -1,13 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Announcements{% endblock %}
 {% block content %}
-<h2>Announcements</h2>
-<ul>
-    {% for ann in announcements %}
-      <li>{{ ann.message }} - <small>{{ ann.date }}</small></li>
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .profile-header {
+        background: linear-gradient(45deg, #0d6efd, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+    }
+    .card {
+        border-radius: 0.75rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="profile-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-1">Announcements</h2>
+        </div>
+        <a href="{{ url_for('farmer_dashboard') }}" class="btn btn-light">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    {% if announcements %}
+        <ul class="list-group">
+        {% for ann in announcements %}
+            <li class="list-group-item">
+                <h5>{{ ann.title }}</h5>
+                <p>{{ ann.content }}</p>
+                <small class="text-muted">{{ ann.date_posted.strftime('%d-%b-%Y') }}</small>
+            </li>
+        {% endfor %}
+        </ul>
     {% else %}
-      <li>No announcements yet.</li>
-    {% endfor %}
-</ul>
-<a href="{{ url_for('farmer_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        <div class="card">
+            <div class="card-body">
+                <p>No announcements available at this time.</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
 {% endblock %}

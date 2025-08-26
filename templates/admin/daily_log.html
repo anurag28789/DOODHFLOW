@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Daily Log{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .profile-header {
+        background: linear-gradient(45deg, #0d6efd, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+    }
+    .card {
+        border-radius: 0.75rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="profile-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-1">Daily Log</h2>
+            <p class="mb-0">Record daily expenses and casual sales for {{ selected_date.strftime('%d %b %Y') }}</p>
+        </div>
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="date" class="form-label"><strong>Select Date:</strong></label>
+                    <input type="date" id="date" name="date" class="form-control"
+                           value="{{ selected_date.strftime('%Y-%m-%d') }}" onchange="this.form.submit()">
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <div class="row g-5">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                   <h4><i class="fas fa-wallet me-2"></i>Daily Expenses</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ expense_form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ expense_form.expense_type.label(class="form-label") }}
+                            {{ expense_form.expense_type(class="form-select") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ expense_form.amount.label(class="form-label") }}
+                            {{ expense_form.amount(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ expense_form.remarks.label(class="form-label") }}
+                            {{ expense_form.remarks(class="form-control") }}
+                        </div>
+                        {{ expense_form.submit_expense(class="btn btn-primary") }}
+                    </form>
+                </div>
+                 <div class="card-footer">
+                    <h5 class="mt-4">Logged Expenses</h5>
+                    <ul class="list-group">
+                        {% for expense in expenses %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ expense.expense_type }}</strong>
+                                {% if expense.remarks %}<br><small class="text-muted">{{ expense.remarks }}</small>{% endif %}
+                            </div>
+                            <span class="badge bg-danger rounded-pill">₹{{ "%.2f"|format(expense.amount) }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">No expenses logged for this date.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100">
+                 <div class="card-header">
+                    <h4><i class="fas fa-cash-register me-2"></i>Casual Sales</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ sale_form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ sale_form.session.label(class="form-label") }}
+                            {{ sale_form.session(class="form-select") }}
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                {{ sale_form.cow_qty.label(class="form-label") }}
+                                {{ sale_form.cow_qty(class="form-control") }}
+                            </div>
+                            <div class="col-6 mb-3">
+                                {{ sale_form.buffalo_qty.label(class="form-label") }}
+                                {{ sale_form.buffalo_qty(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            {{ sale_form.amount_collected.label(class="form-label") }}
+                            {{ sale_form.amount_collected(class="form-control") }}
+                        </div>
+                        {{ sale_form.submit_sale(class="btn btn-primary") }}
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <h5 class="mt-4">Logged Sales</h5>
+                    <ul class="list-group">
+                        {% for sale in casual_sales %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>{{ sale.session|capitalize }} Sale</strong>
+                                <span class="badge bg-success rounded-pill">₹{{ "%.2f"|format(sale.amount_collected) }}</span>
+                            </div>
+                            <small class="text-muted">
+                                Cow: {{ sale.cow_qty }} L, Buffalo: {{ sale.buffalo_qty }} L
+                            </small>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">No casual sales logged for this date.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

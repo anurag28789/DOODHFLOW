@@ -8,9 +8,12 @@
   body {
     background-color: #f8f9fa;
   }
-  .page-header {
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom: 1rem;
+  .profile-header {
+      background: linear-gradient(45deg, #198754, #6c757d);
+      color: #fff;
+      padding: 2rem;
+      border-radius: 0.75rem;
+      margin-bottom: 2rem;
   }
   .nav-pills .nav-link {
     color: #6c757d;
@@ -54,14 +57,14 @@
 </style>
 
 <div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
-    <div>
-      <h2 class="mb-0">Farmer Management</h2>
-      <p class="text-muted mb-0">Oversee farmers and manage milk collection.</p>
-    </div>
-    <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
-    </a>
+  <div class="profile-header d-flex justify-content-between align-items-center">
+      <div>
+          <h2 class="mb-1">Farmer Management</h2>
+          <p class="mb-0">Oversee farmers and manage milk collection.</p>
+      </div>
+      <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
+          <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+      </a>
   </div>
 
   <ul class="nav nav-pills mb-4">

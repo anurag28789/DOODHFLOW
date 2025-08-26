@@ -7,9 +7,13 @@
 
 <style>
     body { background-color: #f8f9fa; }
-    .page-header { border-bottom: 1px solid #dee2e6; padding-bottom: 1rem; }
-
-    /* --- Improved Card Styles --- */
+    .profile-header {
+        background: linear-gradient(45deg, #6f42c1, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+    }
     .card {
         border: none;
         border-radius: 0.75rem;
@@ -22,8 +26,6 @@
         font-weight: 600;
         text-align: left;
     }
-
-    /* --- Enhanced Stat Card --- */
     .stat-card {
         text-align: center;
         transition: all 0.2s ease-in-out;
@@ -43,29 +45,26 @@
     .stat-card .percent-change { font-size: 0.9rem; font-weight: 600; }
     .percent-up { color: #198754; }
     .percent-down { color: #dc3545; }
-
-    /* Color-coded borders for stat cards */
     .border-success { border-top-color: #198754 !important; }
     .border-danger { border-top-color: #dc3545 !important; }
     .border-primary { border-top-color: #0d6efd !important; }
     .border-info { border-top-color: #0dcaf0 !important; }
     .border-warning { border-top-color: #ffc107 !important; }
-
-    /* --- Responsive Chart Container (FIX) --- */
+    .border-secondary { border-top-color: #6c757d !important; }
     .chart-container {
         position: relative;
-        height: 350px; /* Maintain height */
-        width: 100%;   /* Allow width to be flexible */
+        height: 350px;
+        width: 100%;
     }
 </style>
 
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+    <div class="profile-header d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="mb-0">Business Analysis</h2>
-            <p class="text-muted mb-0">Viewing data from {{ start_date.strftime('%d-%b-%Y') }} to {{ end_date.strftime('%d-%b-%Y') }}</p>
+            <h2 class="mb-1">Business Analysis</h2>
+            <p class="mb-0">Viewing data from {{ start_date.strftime('%d-%b-%Y') }} to {{ end_date.strftime('%d-%b-%Y') }}</p>
         </div>
-        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
     </div>
@@ -122,22 +121,22 @@
             </div>
         </div>
         <div class="col-12 col-md-4 col-lg-2">
+            <div class="card stat-card border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Expenses</h5>
+                    <div class="stat-value">₹{{ total_expenses|round(0) | default(0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4 col-lg-2">
             <div class="card stat-card border-primary">
                 <div class="card-body">
                     <h5 class="card-title">Net Profit</h5>
-                    <div class="stat-value">₹{{ (revenue_current - farmer_payouts)|round(0) | default(0) }}</div>
+                    <div class="stat-value">₹{{ (revenue_current - farmer_payouts - total_expenses)|round(0) | default(0) }}</div>
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-6 col-lg-2">
-            <div class="card stat-card border-info">
-                <div class="card-body">
-                    <h5 class="card-title">Milk Transacted</h5>
-                    <div class="stat-value">{{ total_milk_transacted|round(0) | default(0) }} <small>L</small></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 col-lg-2">
+        <div class="col-12 col-md-4 col-lg-2">
             <div class="card stat-card border-warning">
                 <div class="card-body">
                     <h5 class="card-title">Due to Pay</h5>
@@ -145,7 +144,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-6 col-lg-2">
+        <div class="col-12 col-md-4 col-lg-2">
             <div class="card stat-card border-danger">
                 <div class="card-body">
                     <h5 class="card-title">Due to Collect</h5>
@@ -214,7 +213,6 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // --- CORRECTED: Set responsive to true to fix chart sizing ---
     Chart.defaults.responsive = true;
     Chart.defaults.maintainAspectRatio = false;
 

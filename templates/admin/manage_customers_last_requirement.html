@@ -6,9 +6,12 @@
   body {
     background-color: #f8f9fa;
   }
-  .page-header {
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom: 1rem;
+  .profile-header {
+    background: linear-gradient(45deg, #0d6efd, #6c757d);
+    color: #fff;
+    padding: 2rem;
+    border-radius: 0.75rem;
+    margin-bottom: 2rem;
   }
   .nav-pills .nav-link {
     color: #6c757d;
@@ -58,16 +61,15 @@
   }
 </style>
 <div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+  <div class="profile-header d-flex justify-content-between align-items-center">
     <div>
-      <h2>Manage Customer</h2>
-      <p class="text-muted">Review last recorded milk requirements for customers.</p>
+        <h2 class="mb-1">Manage Customers</h2>
+        <p class="mb-0">Review last recorded milk requirements for customers.</p>
     </div>
-    <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+    <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
+        <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
     </a>
   </div>
-  <!-- Nav Pills -->
   <ul class="nav nav-pills mb-4">
     <li class="nav-item">
       <a class="nav-link {% if request.endpoint == 'manage_customers' %}active{% endif %}" href="{{ url_for('manage_customers') }}">
@@ -85,7 +87,6 @@
       </a>
     </li>
   </ul>
-  <!-- Last Requirements List -->
   <div class="row g-3">
     {% if customers %}
       {% for customer in customers %}
@@ -120,7 +121,6 @@
                 <div class="item-label">Total Amount</div>
                 <div class="item-value text-primary fw-bold">₹{{ last_req.total_amount | default(0, true) | round(2) }}</div>
               </div>
-              <!-- Delete Button for milkman if last requirement is within 5 minutes -->
               {% if current_user.role == 'milkman' and customer.milkman_id == current_user.id %}
                 {% set time_diff = (now - last_req.status_update_time).total_seconds() if last_req.status_update_time else None %}
                 {% if time_diff and time_diff < 300 %}

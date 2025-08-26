@@ -8,9 +8,12 @@
   body {
     background-color: #f8f9fa;
   }
-  .page-header {
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom: 1rem;
+  .profile-header {
+    background: linear-gradient(45deg, #0d6efd, #6c757d);
+    color: #fff;
+    padding: 2rem;
+    border-radius: 0.75rem;
+    margin-bottom: 2rem;
   }
   .nav-pills .nav-link {
     color: #6c757d;
@@ -19,7 +22,7 @@
   .nav-pills .nav-link.active, .nav-pills .nav-link:focus {
     background-color: #0d6efd;
     color: white;
-    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
   }
   .requirement-card {
     border: 1px solid #e9ecef;
@@ -58,14 +61,14 @@
 </style>
 
 <div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
-    <div>
-      <h2>Manage Customer</h2>
-      <p class="text-muted">Record and update customer milk requirements for {{ session_name|capitalize }} session, {{ today.strftime('%d %B %Y') }}</p>
-    </div>
-    <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
-    </a>
+  <div class="profile-header d-flex justify-content-between align-items-center">
+      <div>
+          <h2 class="mb-1">Manage Customers</h2>
+          <p class="mb-0">Record and update customer milk requirements for {{ session_name|capitalize }} session, {{ today.strftime('%d %B %Y') }}</p>
+      </div>
+      <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
+          <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+      </a>
   </div>
 
   {% if updated_customers_info %}

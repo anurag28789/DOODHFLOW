@@ -3,7 +3,6 @@
 {% block title %}Milkman Dashboard{% endblock %}
 
 {% block content %}
-<!-- Font Awesome for better icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 
 <style>
@@ -98,7 +97,6 @@
 </style>
 
 <div class="container mt-4">
-    <!-- Header -->
     <div class="profile-header d-flex justify-content-between align-items-center">
         <div>
             <h2 class="mb-1">Dashboard</h2>
@@ -107,7 +105,6 @@
     </div>
 
     {% if not current_user.is_active_admin %}
-        <!-- DEACTIVATED ADMIN PANEL -->
         <div class="card text-center border-danger shadow-sm">
             <div class="card-header bg-danger text-white">
                 <i class="fas fa-exclamation-triangle me-2"></i>
@@ -120,14 +117,12 @@
                     <p class="text-muted border p-2 rounded">Reason: "{{ current_user.deactivation_reason }}"</p>
                 {% endif %}
 
-                <!-- Reactivate Button -->
-                <a href="{{ url_for('admin_reactivate') }}" class="btn btn-success btn-lg mt-2">
+                <a href="{{ url_for('admin_reactivate_self') }}" class="btn btn-success btn-lg mt-2">
                     <i class="fas fa-power-off me-2"></i> Reactivate
                 </a>
             </div>
         </div>
     {% else %}
-        <!-- FULL ACTIVE DASHBOARD -->
         <div class="d-flex justify-content-end mb-3">
             {% if current_user.role == 'milkman' %}
                 <form method="POST" action="{{ url_for('milkman_deactivate_self') }}">
@@ -140,28 +135,25 @@
             {% endif %}
         </div>
 
-        <!-- Top Stats -->
         <div class="row g-4 mb-4">
             <div class="col-md-6">
                 <div class="stat-card">
                     <div class="stat-icon"><i class="fas fa-users"></i></div>
                     <h5 class="card-title">Active Customers</h5>
-                    <p class="stat-value">{{ total_customers }}</p>
+                    <p class="stat-value">{{ active_customers }}</p>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-inbox"></i></div>
-                    <h5 class="card-title">Pending Requests</h5>
-                    <p class="stat-value">{{ pending_requests }}</p>
+                    <div class="stat-icon"><i class="fas fa-tractor"></i></div>
+                    <h5 class="card-title">Active Farmers</h5>
+                    <p class="stat-value">{{ active_farmers }}</p>
                 </div>
             </div>
         </div>
 
-        <!-- Today's Operations -->
         <h4 class="mb-3">Today's Operations</h4>
         <div class="row g-4 mb-5">
-            <!-- Morning Session -->
             <div class="col-lg-6">
                 <div class="progress-card">
                     <h5 class="mb-3"><i class="fas fa-sun me-2 text-warning"></i>Morning Session</h5>
@@ -186,7 +178,6 @@
                 </div>
             </div>
 
-            <!-- Evening Session -->
             <div class="col-lg-6">
                 <div class="progress-card">
                     <h5 class="mb-3"><i class="fas fa-moon me-2 text-primary"></i>Evening Session</h5>
@@ -212,7 +203,6 @@
             </div>
         </div>
 
-        <!-- Management Actions -->
         <h4 class="mb-3">Management Actions</h4>
         <div class="row g-3">
             <div class="col-md-3">
@@ -233,6 +223,14 @@
                     <div class="action-title">Set Milk Rates</div>
                 </a>
             </div>
+            <div class="col-md-3">
+                <a href="{{ url_for('daily_log') }}" class="action-card">
+                    <div class="action-icon"><i class="fas fa-book"></i></div>
+                    <div class="action-title">Daily Log</div>
+                </a>
+            </div>
+        </div>
+        <div class="row g-3 mt-3 justify-content-center">
             <div class="col-md-3">
                 <a href="{{ url_for('admin_analysis') }}" class="action-card">
                     <div class="action-icon"><i class="fas fa-chart-pie"></i></div>

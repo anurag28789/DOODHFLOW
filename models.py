@@ -204,5 +204,25 @@ class Payment(db.Model):
     requirement = db.relationship('Requirement', back_populates='payments')
     collected_by = db.relationship('User', foreign_keys=[collected_by_id])
 
-# REMOVED: The FarmerSupply model was redundant as the Collection model
-# already handles this functionality.
+class Expense(db.Model):
+    __tablename__ = 'expense'
+    id = db.Column(db.Integer, primary_key=True)
+    milkman_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=date.today)
+    expense_type = db.Column(db.String(50), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    remarks = db.Column(db.String(255), nullable=True)
+
+    milkman = db.relationship('User', backref='expenses')
+
+class CasualSale(db.Model):
+    __tablename__ = 'casual_sale'
+    id = db.Column(db.Integer, primary_key=True)
+    milkman_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=date.today)
+    session = db.Column(db.String(10), nullable=False)
+    cow_qty = db.Column(db.Float, default=0.0)
+    buffalo_qty = db.Column(db.Float, default=0.0)
+    amount_collected = db.Column(db.Float, nullable=False)
+
+    milkman = db.relationship('User', backref='casual_sales')

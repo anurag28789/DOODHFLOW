@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Today's Supply{% endblock %}
 {% block content %}
-<!-- Font Awesome for icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 <style>
     body {
         background-color: #f8f9fa;
     }
-    .page-header {
-        border-bottom: 1px solid #dee2e6;
-        padding-bottom: 1rem;
+    .profile-header {
+        background: linear-gradient(45deg, #198754, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
     }
     .nav-pills .nav-link {
         color: #6c757d;
@@ -51,17 +53,16 @@
     }
 </style>
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+    <div class="profile-header d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="mb-0">Farmer Management</h2>
-            <p class="text-muted mb-0">Oversee farmers and manage milk collection.</p>
+            <h2 class="mb-1">Farmer Management</h2>
+            <p class="mb-0">Oversee farmers and manage milk collection.</p>
         </div>
-        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
             <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
         </a>
     </div>
 
-    <!-- NEW: WhatsApp Notification Box -->
     {% if updated_farmers_info %}
     <div class="alert alert-success mb-4">
         <h5 class="alert-heading"><i class="fab fa-whatsapp me-2"></i>Notify Updated Farmers</h5>
@@ -93,9 +94,7 @@
         {% endfor %}
     </div>
     {% endif %}
-    <!-- END NEW -->
 
-    <!-- Tab Navigation -->
     <ul class="nav nav-pills mb-4">
         <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'manage_farmers' %}active{% endif %}" href="{{ url_for('manage_farmers') }}">
@@ -219,7 +218,6 @@ function updateAmounts(farmerId) {
     const totalAmt = cowAmt + buffaloAmt;
     const cardFooter = cowInput.closest('.supply-card').querySelector('.card-footer');
     if (!cardFooter) return;
-    // Use explicit selectors for each amount
     const cowAmtElem = cardFooter.querySelector('.cow-amt .amount-value');
     const buffaloAmtElem = cardFooter.querySelector('.buffalo-amt .amount-value');
     const totalAmtElem = cardFooter.querySelector('.total-amt .amount-value');
@@ -236,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (cowInput && buffaloInput) {
             cowInput.addEventListener('input', () => updateAmounts(farmerId));
             buffaloInput.addEventListener('input', () => updateAmounts(farmerId));
-            updateAmounts(farmerId);  // Run once on page load to initialize amounts
+            updateAmounts(farmerId);
         }
     {% endfor %}
 });

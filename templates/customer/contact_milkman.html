@@ -3,15 +3,33 @@
 {% block title %}Contact Milkman{% endblock %}
 
 {% block content %}
-<div class="container my-4">
-  <h2>Contact Your Milkman</h2>
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .profile-header {
+        background: linear-gradient(45deg, #0d6efd, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+    }
+    .card {
+        border-radius: 0.75rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="profile-header">
+        <h2 class="mb-1">Contact Your Milkman</h2>
+    </div>
 
   <div class="card p-4 shadow-sm">
     <h4>{{ milkman.name or milkman.username }}</h4>
     <p><strong>Phone:</strong> {{ milkman.phone or 'Not provided' }}</p>
     <p><strong>Email:</strong> {{ milkman.email or 'Not provided' }}</p>
-
-    <!-- Add more contact info or instructions here -->
 
     <a href="{{ url_for('customer_dashboard') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
   </div>
