@@ -311,3 +311,8 @@ class CasualSaleForm(FlaskForm):
     buffalo_qty = FloatField("Buffalo Milk (L)", validators=[Optional(), NumberRange(min=0)], default=0.0)
     amount_collected = FloatField("Amount Collected (₹)", validators=[DataRequired(), NumberRange(min=0)])
     submit_sale = SubmitField("Add Sale")
+
+class AnnouncementForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(max=100)])
+    content = TextAreaField('Content', validators=[DataRequired()])
+    submit = SubmitField('Post Announcement')

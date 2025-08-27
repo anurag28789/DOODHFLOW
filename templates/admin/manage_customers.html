@@ -5,13 +5,6 @@
   body {
     background-color: #f8f9fa;
   }
-  .profile-header {
-    background: linear-gradient(45deg, #0d6efd, #6c757d);
-    color: #fff;
-    padding: 2rem;
-    border-radius: 0.75rem;
-    margin-bottom: 2rem;
-  }
   .nav-pills .nav-link {
     color: #6c757d;
   }
@@ -33,24 +26,30 @@
   }
   .card-footer {
     background-color: #f8f9fa;
+    padding: 0.5rem; /* Tighter footer */
   }
   .card-footer .btn {
-    margin: 0 3px;
+    padding: 0.25rem 0.5rem; /* Smaller buttons */
+    font-size: 0.8rem;
   }
-  .search-input {
-    max-width: 500px;
+  .customer-card .card-body {
+    padding: 0.75rem; /* More compact padding */
+  }
+  .customer-card .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .customer-card .card-text, .customer-card small, .customer-card .rate-info {
+    font-size: 0.8rem; /* Smaller text for details */
   }
 </style>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet"/>
 
 <div class="container mt-4">
-  <div class="profile-header d-flex justify-content-between align-items-center">
-    <div>
-      <h2 class="mb-1">Manage Customers</h2>
-      <p class="mb-0">Manage customers and their milk requirements.</p>
-    </div>
-    <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
-      <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Manage Customers</h2>
+    <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
     </a>
   </div>
 
@@ -72,38 +71,41 @@
     </li>
   </ul>
 
-  <div class="row mb-3">
-    <div class="col-md-6">
-      <form method="get" action="{{ url_for('manage_customers') }}" class="d-flex">
-        <input class="form-control search-input" type="search" name="search" placeholder="Search by ID, name, phone, or address" aria-label="Search" value="{{ search }}">
-        <button class="btn btn-primary ms-2" type="submit"><i class="fas fa-search"></i></button>
-        <a href="{{ url_for('manage_customers') }}" class="btn btn-secondary ms-2">Clear</a>
+  <div class="card card-body mb-4">
+      <form method="get" action="{{ url_for('manage_customers') }}" class="row g-2 align-items-center">
+          <div class="col">
+              <input class="form-control" type="search" name="search" placeholder="Search by ID, name, or phone..." value="{{ search or '' }}">
+          </div>
+          <div class="col-auto">
+              <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
+          </div>
+          <div class="col-auto">
+              <a href="{{ url_for('manage_customers') }}" class="btn btn-outline-secondary">Clear</a>
+          </div>
+          <div class="col-12 col-sm-auto mt-2 mt-sm-0 ms-sm-auto">
+              <a href="{{ url_for('add_customer') }}" class="btn btn-primary w-100">
+                  <i class="fas fa-user-plus me-2"></i>Add New Customer
+              </a>
+          </div>
       </form>
-    </div>
-    <div class="col-md-6 text-md-end mt-2 mt-md-0">
-      <a href="{{ url_for('add_customer') }}" class="btn btn-primary">
-        <i class="fas fa-user-plus me-2"></i>Add New Customer
-      </a>
-    </div>
   </div>
 
-  <div class="row g-4">
+  <div class="row g-3">
     {% if customers %}
       {% for customer in customers %}
-      <div class="col-md-6 col-lg-4">
+      <div class="col-6 col-lg-4">
         <div class="card customer-card h-100">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
-              <h5 class="card-title mb-1">{{ customer.name }}</h5>
+              <h5 class="card-title mb-0">{{ customer.name }}</h5>
               <span class="badge {% if customer.active %}bg-primary{% else %}bg-secondary{% endif %}">
                 {{ 'Active' if customer.active else 'Inactive' }}
               </span>
             </div>
-            <small class="text-muted">Customer ID: {{ customer.id }}</small>
-            <hr class="my-2" />
-            <p class="card-text small mb-1"><i class="fas fa-phone-alt me-2"></i>{{ customer.phone }}</p>
-            <p class="card-text small mb-2"><i class="fas fa-map-marker-alt me-2"></i>{{ customer.address }}</p>
-            <div class="d-flex justify-content-around">
+            <small class="text-muted">ID: {{ customer.id }}</small>
+            <p class="card-text mb-1 mt-2"><i class="fas fa-phone-alt fa-fw me-1"></i>{{ customer.phone }}</p>
+            <p class="card-text mb-2"><i class="fas fa-map-marker-alt fa-fw me-1"></i>{{ customer.address }}</p>
+            <div class="d-flex justify-content-between rate-info border-top pt-2 mt-2">
               <div class="text-center">
                 <small class="text-muted">Cow Rate</small>
                 <div class="fw-bold">₹{{ customer.cow_rate | round(2) }}</div>
@@ -115,17 +117,17 @@
             </div>
           </div>
           <div class="card-footer text-center">
-            <a href="{{ url_for('admin_customer_order_history', customer_id=customer.id) }}" class="btn btn-sm btn-info me-1" title="Order History"><i class="fas fa-history"></i></a>
-            <a href="{{ url_for('edit_customer', id=customer.id) }}" class="btn btn-sm btn-warning me-1" title="Edit"><i class="fas fa-edit"></i></a>
+            <a href="{{ url_for('admin_customer_order_history', customer_id=customer.id) }}" class="btn btn-sm btn-info" title="Order History"><i class="fas fa-history"></i></a>
+            <a href="{{ url_for('edit_customer', id=customer.id) }}" class="btn btn-sm btn-warning" title="Edit"><i class="fas fa-edit"></i></a>
             {% if customer.active %}
               <form method="post" action="{{ url_for('deactivate_customer', id=customer.id) }}" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-secondary me-1" title="Deactivate" onclick="return confirm('Are you sure you want to deactivate this customer?')"><i class="fas fa-toggle-off"></i></button>
+                <button type="submit" class="btn btn-sm btn-secondary" title="Deactivate" onclick="return confirm('Are you sure you want to deactivate this customer?')"><i class="fas fa-toggle-off"></i></button>
               </form>
             {% else %}
               <form method="post" action="{{ url_for('activate_customer', id=customer.id) }}" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-success me-1" title="Activate" onclick="return confirm('Are you sure you want to activate this customer?')"><i class="fas fa-toggle-on"></i></button>
+                <button type="submit" class="btn btn-sm btn-success" title="Activate" onclick="return confirm('Are you sure you want to activate this customer?')"><i class="fas fa-toggle-on"></i></button>
               </form>
             {% endif %}
             <form method="post" action="{{ url_for('delete_customer', id=customer.id) }}" style="display:inline;">

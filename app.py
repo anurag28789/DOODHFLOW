@@ -25,13 +25,15 @@ from functools import wraps
 
 from models import (
     User, Customer, Requirement,
-    Farmer, Payment, MilkRate, Collection, Expense, CasualSale
+    Farmer, Payment, MilkRate, Collection, Expense, CasualSale,
+    Announcement
 )
 
 from forms import (
     CustomerForm, CustomerLoginForm, RequirementForm,
     FarmerForm, MilkRateForm, AdminDeactivationForm,
-    PaymentForm, UserForm, MilkmanProfileForm, ExpenseForm, CasualSaleForm
+    PaymentForm, UserForm, MilkmanProfileForm, ExpenseForm, CasualSaleForm,
+    AnnouncementForm
 )
 
 from db import db  # Your database instance
@@ -96,6 +98,7 @@ def home():
 #-------------------------------------------
 #                MANAGE CUSTOMER
 #-------------------------------------------
+# In your app.py file
 
 @app.route('/manage_customers', methods=['GET'])
 @login_required
@@ -106,26 +109,34 @@ def manage_customers():
 
     search = request.args.get('search', '').strip()
 
+    # Base query for the current user's customers
     if current_user.role == 'milkman':
         query = Customer.query.filter_by(milkman_id=current_user.id)
     else:
         query = Customer.query
 
+    # Apply search filter if a search term is provided
     if search:
-        like = f"%{search}%"
-        query = query.filter(
-            or_(
-                Customer.name.ilike(like),
-                Customer.phone.ilike(like),
-                Customer.address.ilike(like),
-                Customer.id.cast(db.String).ilike(like)
+        # Check if the search term is a number first
+        if search.isdigit():
+            # If it's a number, ONLY search by ID for an exact match
+            query = query.filter(Customer.id == int(search))
+        else:
+            # If it's text, search the text fields
+            like_term = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Customer.name.ilike(like_term),
+                    Customer.phone.ilike(like_term),
+                    Customer.address.ilike(like_term)
+                )
             )
-        )
 
     customers = query.order_by(Customer.id).all()
 
     return render_template('admin/manage_customers.html', customers=customers, search=search)
 
+# In your app.py file
 
 @app.route('/manage_customers/requirements', methods=['GET', 'POST'])
 @login_required
@@ -144,12 +155,12 @@ def manage_customers_requirements():
     if session_name not in ['morning', 'evening']:
         session_name = 'morning'
 
+    # This part handles the notifications after saving, it's correct and remains the same.
     updated_customers_info = []
     if 'updated_customers' in session:
         updated_data = session.pop('updated_customers', {})
         if updated_data.get('date') == selected_date.strftime('%Y-%m-%d') and updated_data.get('session') == session_name:
             customer_ids = updated_data.get('ids', [])
-
             updated_customers_info = db.session.query(
                 Customer.name, Customer.phone, Requirement.cow_qty, Requirement.buffalo_qty,
                 Requirement.status,
@@ -164,6 +175,7 @@ def manage_customers_requirements():
                 Requirement.session == session_name
             ).all()
 
+    # Base query for customers who do not have a requirement logged for the selected date and session.
     existing_customer_subquery = (
         db.session.query(Requirement.customer_id).filter(and_(
             Requirement.date_requested == selected_date, Requirement.session == session_name
@@ -172,7 +184,26 @@ def manage_customers_requirements():
     query_customers = Customer.query.filter(Customer.active == True)
     if current_user.role == 'milkman':
         query_customers = query_customers.filter(Customer.milkman_id == current_user.id)
+    
+    # *** THIS IS THE CORRECTED SEARCH LOGIC ***
+    search = request.args.get('search', '').strip()
+    if search:
+        if search.isdigit():
+            # If the search term is a number, ONLY search by ID
+            query_customers = query_customers.filter(Customer.id == int(search))
+        else:
+            # Otherwise, search by text fields
+            like_term = f"%{search}%"
+            query_customers = query_customers.filter(
+                or_(
+                    Customer.name.ilike(like_term),
+                    Customer.phone.ilike(like_term),
+                    Customer.address.ilike(like_term)
+                )
+            )
+
     customers_not_yet_entered = query_customers.filter(~Customer.id.in_(existing_customer_subquery)).order_by(Customer.name).all()
+    
     existing_reqs = Requirement.query.filter(
         Requirement.customer_id.in_([c.id for c in customers_not_yet_entered]),
         Requirement.date_requested == selected_date,
@@ -181,6 +212,7 @@ def manage_customers_requirements():
     req_map = {req.customer_id: req for req in existing_reqs}
 
     if request.method == 'POST':
+        # POST logic remains the same
         allowed_statuses = {'paid', 'unpaid'}
         customers_to_update_ids = []
 
@@ -201,12 +233,9 @@ def manage_customers_requirements():
             if cow_qty == 0 and buffalo_qty == 0: continue
 
             customers_to_update_ids.append(customer.id)
-
             total_amount = (cow_qty * (customer.cow_rate or 0)) + (buffalo_qty * (customer.buffalo_rate or 0))
-
             req = req_map.get(customer.id)
             if not req:
-                # This is the corrected line
                 req = Requirement(customer_id=customer.id, date_requested=selected_date, session=session_name)
                 db.session.add(req)
 
@@ -594,6 +623,8 @@ def download_order_report(customer_id):
     )
 
 
+# In your app.py file
+
 @app.route('/customer/<int:customer_id>/generate_bill', methods=['POST'])
 @login_required
 def generate_customer_bill(customer_id):
@@ -611,13 +642,14 @@ def generate_customer_bill(customer_id):
         Requirement.id.in_(selected_ids),
         Requirement.customer_id == customer_id,
         Requirement.status == 'unpaid'
-    ).all()
+    ).order_by(Requirement.date_requested).all() # Order by date for a clean bill
 
     if not requirements:
         flash("No unpaid orders were selected for billing.", "warning")
         return redirect(url_for('admin_customer_order_history', customer_id=customer_id))
 
     total_amount = 0
+    bill_details = [] # To store details for the WhatsApp message
 
     for req in requirements:
         req_amount = ((req.cow_qty or 0) * (req.cow_rate_at_order or 0) +
@@ -638,8 +670,38 @@ def generate_customer_bill(customer_id):
             bill_date=datetime.utcnow()
         )
         db.session.add(payment)
+        
+        # Store details for the message
+        bill_details.append({
+            "date": req.date_requested.strftime('%d-%b-%Y'),
+            "cow_qty": req.cow_qty or 0,
+            "cow_rate": req.cow_rate_at_order or 0,
+            "buffalo_qty": req.buffalo_qty or 0,
+            "buffalo_rate": req.buffalo_rate_at_order or 0,
+        })
 
     db.session.commit()
+
+    # --- NEW: Construct and save the detailed WhatsApp message to the session ---
+    whatsapp_message = f"Hello {customer.name},\n\nHere is a detailed summary of your recent bill:\n"
+    for detail in bill_details:
+        whatsapp_message += f"\n* {detail['date']}:"
+        cow_total = detail['cow_qty'] * detail['cow_rate']
+        buffalo_total = detail['buffalo_qty'] * detail['buffalo_rate']
+
+        if detail['cow_qty'] > 0:
+            whatsapp_message += f"\n  - Cow Milk: {detail['cow_qty']} L @ ₹{detail['cow_rate']:.2f}/L = ₹{cow_total:.2f}"
+        if detail['buffalo_qty'] > 0:
+            whatsapp_message += f"\n  - Buffalo Milk: {detail['buffalo_qty']} L @ ₹{detail['buffalo_rate']:.2f}/L = ₹{buffalo_total:.2f}"
+            
+    whatsapp_message += f"\n--------------------\n*Total Amount Due: ₹{total_amount:.2f}*\n\nThank you for your business!\nDoodhFlow"
+    
+    session['bulk_bill_notification'] = {
+        'customer_name': customer.name,
+        'customer_phone': customer.phone,
+        'message': whatsapp_message
+    }
+    # --- END NEW ---
 
     flash(f"Bill for ₹{total_amount:.2f} generated and {len(requirements)} orders marked as paid.", "success")
 
@@ -706,8 +768,16 @@ def customer_announcements():
     if current_user.role != 'customer':
         flash("Access denied.", "danger")
         return redirect(url_for('home'))
-    announcements = []
+    
+    # Ensure customer has a milkman assigned
+    if not current_user.customer or not hasattr(current_user.customer, 'milkman_id'):
+         announcements = []
+    else:
+        milkman_id = current_user.customer.milkman_id
+        announcements = Announcement.query.filter_by(milkman_id=milkman_id).order_by(Announcement.date_posted.desc()).all()
+    
     return render_template('customer/announcements.html', announcements=announcements)
+
 
 @app.route('/customer/contact_milkman')
 @login_required
@@ -984,9 +1054,15 @@ def farmer_announcements():
     if current_user.role != 'farmer':
         flash("Access denied.", "danger")
         return redirect(url_for('login'))
-    announcements = []
+        
+    # Ensure farmer has a milkman assigned
+    if not hasattr(current_user, 'milkman_id'):
+        announcements = []
+    else:
+        milkman_id = current_user.milkman_id
+        announcements = Announcement.query.filter_by(milkman_id=milkman_id).order_by(Announcement.date_posted.desc()).all()
+        
     return render_template('farmer/announcements.html', announcements=announcements)
-
 
 @app.route('/contact_milkman')
 @login_required
@@ -2512,6 +2588,29 @@ def apply_future_rates():
 
         db.session.commit()
         print(f"Successfully applied {len(rates_to_update)} new milk rates.")
+
+
+@app.route('/manage_announcements', methods=['GET', 'POST'])
+@login_required
+def manage_announcements():
+    if current_user.role not in ['milkman', 'admin']:
+        flash("Access denied.", "danger")
+        return redirect(url_for('home'))
+
+    form = AnnouncementForm()
+    if form.validate_on_submit():
+        announcement = Announcement(
+            title=form.title.data,
+            content=form.content.data,
+            milkman_id=current_user.id
+        )
+        db.session.add(announcement)
+        db.session.commit()
+        flash('Your announcement has been created!', 'success')
+        return redirect(url_for('manage_announcements'))
+
+    announcements = Announcement.query.filter_by(milkman_id=current_user.id).order_by(Announcement.date_posted.desc()).all()
+    return render_template('admin/manage_announcements.html', form=form, announcements=announcements)
 
 # ------------------------
 # Run App

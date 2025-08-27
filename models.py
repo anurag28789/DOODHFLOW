@@ -226,3 +226,13 @@ class CasualSale(db.Model):
     amount_collected = db.Column(db.Float, nullable=False)
 
     milkman = db.relationship('User', backref='casual_sales')
+
+class Announcement(db.Model):
+    __tablename__ = 'announcement'
+    id = db.Column(db.Integer, primary_key=True)
+    milkman_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    milkman = db.relationship('User', backref='announcements')

@@ -41,34 +41,42 @@
     justify-content: space-around;
     font-size: 0.9rem;
   }
-  .amount-display .amount-label {
-    color: #6c757d;
-    font-size: 0.8rem;
-    text-transform: uppercase;
+  .sticky-footer {
+      position: sticky;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 1rem;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
   }
-  .amount-display .amount-value {
-    font-weight: 600;
-    font-size: 1.1rem;
+  #requirements-form {
+    padding-bottom: 100px; /* Space for the sticky footer */
   }
-  .total-amt .amount-value {
-    color: #198754;
+
+  /* Responsive styles for the header and controls */
+  @media (max-width: 767.98px) {
+    .profile-header {
+        padding: 1.25rem;
+        text-align: center;
+    }
+    .profile-header h2 {
+        font-size: 1.5rem;
+    }
+    .profile-header p {
+        font-size: 0.85rem;
+        margin-bottom: 0.75rem;
+    }
   }
-  .btn-group .btn {
-    border-radius: 50rem;
-    padding-left: 1.2rem;
-    padding-right: 1.2rem;
-  }
+
 </style>
 
 <div class="container mt-4">
-  <div class="profile-header d-flex justify-content-between align-items-center">
-      <div>
-          <h2 class="mb-1">Manage Customers</h2>
-          <p class="mb-0">Record and update customer milk requirements for {{ session_name|capitalize }} session, {{ today.strftime('%d %B %Y') }}</p>
-      </div>
-      <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
-          <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
-      </a>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Today's Requirements</h2>
+    <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back
+    </a>
   </div>
 
   {% if updated_customers_info %}
@@ -77,34 +85,25 @@
       <p>Click a button below to send a WhatsApp notification for the requirements you just saved.</p>
       <hr>
       {% for name, phone, cow_qty, buffalo_qty, status, total_amount, cow_rate, buffalo_rate, payment_id in updated_customers_info %}
+          
+          {% set cow_subtotal = (cow_qty or 0) * (cow_rate or 0) %}
+          {% set buffalo_subtotal = (buffalo_qty or 0) * (buffalo_rate or 0) %}
+          {% set message = "*DoodhFlow Bill - " ~ session_name|capitalize ~ "*\n" %}
+          {% set message = message ~ "--------------------\n" %}
+          {% set message = message ~ "Hello " ~ name ~ ",\n" %}
+          {% set message = message ~ "Here is your bill for " ~ today.strftime('%d %B %Y') ~ ":\n\n" %}
 
-          {# --- NEW: Conditional message logic --- #}
-          {% if status == 'paid' and payment_id %}
-              {% set bill_url = url_for('customer_view_bill', payment_id=payment_id, _external=True) %}
-              {% set message =
-                  "Hello " ~ name ~ ", your payment of ₹" ~ ("%.2f"|format(total_amount)) ~
-                  " has been confirmed. You can view the full bill here: " ~ bill_url
-              %}
-          {% else %}
-              {% set cow_subtotal = (cow_qty or 0) * (cow_rate or 0) %}
-              {% set buffalo_subtotal = (buffalo_qty or 0) * (buffalo_rate or 0) %}
-              {% set message = "*DoodhFlow Bill - " ~ session_name|capitalize ~ "*\n" %}
-              {% set message = message ~ "--------------------\n" %}
-              {% set message = message ~ "Hello " ~ name ~ ",\n" %}
-              {% set message = message ~ "Here is your bill for today:\n\n" %}
-
-              {% if cow_qty > 0 %}
-                  {% set message = message ~ "Cow Milk: " ~ cow_qty ~ "L x ₹" ~ ("%.2f"|format(cow_rate)) ~ " = ₹" ~ ("%.2f"|format(cow_subtotal)) ~ "\n" %}
-              {% endif %}
-
-              {% if buffalo_qty > 0 %}
-                  {% set message = message ~ "Buffalo Milk: " ~ buffalo_qty ~ "L x ₹" ~ ("%.2f"|format(buffalo_rate)) ~ " = ₹" ~ ("%.2f"|format(buffalo_subtotal)) ~ "\n" %}
-              {% endif %}
-
-              {% set message = message ~ "\n--------------------\n" %}
-              {% set message = message ~ "*Total Due: ₹" ~ ("%.2f"|format(total_amount)) ~ "*\n" %}
-              {% set message = message ~ "Status: " ~ status|capitalize %}
+          {% if cow_qty > 0 %}
+              {% set message = message ~ "Cow Milk: " ~ cow_qty ~ "L x ₹" ~ ("%.2f"|format(cow_rate)) ~ " = ₹" ~ ("%.2f"|format(cow_subtotal)) ~ "\n" %}
           {% endif %}
+
+          {% if buffalo_qty > 0 %}
+              {% set message = message ~ "Buffalo Milk: " ~ buffalo_qty ~ "L x ₹" ~ ("%.2f"|format(buffalo_rate)) ~ " = ₹" ~ ("%.2f"|format(buffalo_subtotal)) ~ "\n" %}
+          {% endif %}
+
+          {% set message = message ~ "\n--------------------\n" %}
+          {% set message = message ~ "*Total Amount: ₹" ~ ("%.2f"|format(total_amount)) ~ "*\n" %}
+          {% set message = message ~ "Status: " ~ status|capitalize %}
 
           <div class="d-flex justify-content-between align-items-center mb-2">
               <span>{{ name }}</span>
@@ -134,31 +133,23 @@
     </li>
   </ul>
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">{{ session_name|capitalize }} Session <span class="text-muted fw-normal fs-5">({{ today.strftime('%d %B %Y') }})</span></h4>
-    <div class="btn-group" role="group">
-      <a href="{{ url_for('manage_customers_requirements', session='morning', search=request.args.get('search', '')) }}"
-         class="btn btn-outline-primary {% if session_name == 'morning' %}active{% endif %}">Morning</a>
-      <a href="{{ url_for('manage_customers_requirements', session='evening', search=request.args.get('search', '')) }}"
-         class="btn btn-outline-primary {% if session_name == 'evening' %}active{% endif %}">Evening</a>
-    </div>
-  </div>
-
-  <form method="get" class="row g-3 mb-4">
-    <input type="hidden" name="session" value="{{ session_name }}">
-    <div class="col-sm-6 col-md-5">
-      <div class="input-group">
-        <span class="input-group-text"><i class="fas fa-search"></i></span>
-        <input type="text" name="search" value="{{ request.args.get('search', '') }}" placeholder="Search by name, phone, address" class="form-control" aria-label="Search customers">
+  <form method="get" class="row g-2 align-items-center mb-4">
+      <div class="col-12 col-sm-auto">
+          <div class="btn-group btn-group-sm w-100" role="group">
+              <a href="{{ url_for('manage_customers_requirements', session='morning', search=request.args.get('search', '')) }}" class="btn btn-outline-primary {% if session_name == 'morning' %}active{% endif %}">Morning</a>
+              <a href="{{ url_for('manage_customers_requirements', session='evening', search=request.args.get('search', '')) }}" class="btn btn-outline-primary {% if session_name == 'evening' %}active{% endif %}">Evening</a>
+          </div>
       </div>
-    </div>
-    <div class="col-auto">
-      <button type="submit" class="btn btn-primary">Search</button>
-      <a href="{{ url_for('manage_customers_requirements', session=session_name) }}" class="btn btn-secondary">Clear</a>
-    </div>
+      <div class="col-12 col-sm">
+          <div class="input-group input-group-sm">
+              <input type="search" name="search" value="{{ request.args.get('search', '') }}" placeholder="Search by name..." class="form-control" aria-label="Search customers">
+              <button class="btn btn-primary" type="submit" id="button-addon2"><i class="fas fa-search"></i></button>
+          </div>
+      </div>
   </form>
 
-  <form method="post" novalidate>
+
+  <form method="post" novalidate id="requirements-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if customers %}
       {% for customer in customers %}
@@ -175,7 +166,8 @@
                        id="cow_{{ customer.id }}" name="cow_{{ customer.id }}"
                        class="form-control qty-input"
                        value="{{ req.cow_qty if req else '' }}"
-                       data-cow-rate="{{ customer.cow_rate|round(2) }}">
+                       data-cow-rate="{{ customer.cow_rate|round(2) }}"
+                       data-customer-id="{{ customer.id }}">
                 <small class="text-muted">Rate: ₹{{ customer.cow_rate|round(2) }}</small>
               </div>
               <div class="col-md-4">
@@ -184,7 +176,8 @@
                        id="buffalo_{{ customer.id }}" name="buffalo_{{ customer.id }}"
                        class="form-control qty-input"
                        value="{{ req.buffalo_qty if req else '' }}"
-                       data-buffalo-rate="{{ customer.buffalo_rate|round(2) }}">
+                       data-buffalo-rate="{{ customer.buffalo_rate|round(2) }}"
+                       data-customer-id="{{ customer.id }}">
                 <small class="text-muted">Rate: ₹{{ customer.buffalo_rate|round(2) }}</small>
               </div>
               <div class="col-md-4">
@@ -213,11 +206,13 @@
           </div>
         </div>
       {% endfor %}
-      <div class="text-end mt-4">
+      
+      <div class="sticky-footer text-end">
         <button type="submit" class="btn btn-primary btn-lg">
           <i class="fas fa-save me-2"></i>Save Requirements
         </button>
       </div>
+
     {% else %}
       <div class="alert alert-info">No more customers to add requirements for in this session.</div>
     {% endif %}
@@ -229,29 +224,36 @@ function updateAmounts(customerId) {
   const cowInput = document.getElementById('cow_' + customerId);
   const buffaloInput = document.getElementById('buffalo_' + customerId);
   if (!cowInput || !buffaloInput) return;
+  
   const cowRate = parseFloat(cowInput.dataset.cowRate) || 0;
   const buffaloRate = parseFloat(buffaloInput.dataset.buffaloRate) || 0;
+  
   const cowQty = parseFloat(cowInput.value) || 0;
   const buffaloQty = parseFloat(buffaloInput.value) || 0;
+  
   const cowAmt = cowQty * cowRate;
   const buffaloAmt = buffaloQty * buffaloRate;
   const totalAmt = cowAmt + buffaloAmt;
+  
   document.getElementById('cow_amt_' + customerId).textContent = '₹' + cowAmt.toFixed(2);
   document.getElementById('buffalo_amt_' + customerId).textContent = '₹' + buffaloAmt.toFixed(2);
   document.getElementById('total_amt_' + customerId).textContent = '₹' + totalAmt.toFixed(2);
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  {% for customer in customers %}
-    const customerId = "{{ customer.id }}";
-    const cowInput = document.getElementById('cow_' + customerId);
-    const buffaloInput = document.getElementById('buffalo_' + customerId);
-    if (cowInput && buffaloInput) {
-      cowInput.addEventListener('input', function() { updateAmounts(customerId); });
-      buffaloInput.addEventListener('input', function() { updateAmounts(customerId); });
-      updateAmounts(customerId); // initialize on load
-    }
-  {% endfor %}
+    const allQtyInputs = document.querySelectorAll('.qty-input');
+    const initializedCustomers = new Set();
+
+    allQtyInputs.forEach(input => {
+        const customerId = input.dataset.customerId;
+        
+        input.addEventListener('input', () => updateAmounts(customerId));
+        
+        if (!initializedCustomers.has(customerId)) {
+            updateAmounts(customerId);
+            initializedCustomers.add(customerId);
+        }
+    });
 });
 </script>
 {% endblock %}

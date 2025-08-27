@@ -45,12 +45,12 @@
     }
     .stat-card .card-title {
         color: #6c757d;
-        font-size: 0.9rem;
+        font-size: 0.8rem; /* Slightly smaller title */
         text-transform: uppercase;
         font-weight: 500;
     }
     .stat-card .stat-value {
-        font-size: 2.25rem;
+        font-size: 2rem; /* Reduced font size */
         font-weight: 700;
     }
 
@@ -60,7 +60,7 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 1.5rem;
+        padding: 1.25rem 0.5rem; /* Reduced padding */
         border-radius: 0.75rem;
         background-color: #fff;
         border: 1px solid #e9ecef;
@@ -75,75 +75,103 @@
         color: #0d6efd;
     }
     .action-card .action-icon {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
+        font-size: 2rem; /* Reduced icon size */
+        margin-bottom: 0.5rem;
         color: #0d6efd;
     }
     .action-card .action-title {
         font-weight: 500;
+        font-size: 0.875rem; /* Reduced font size */
     }
 
-    .progress-card {
+    .operations-card {
         background-color: #fff;
         border: 1px solid #e9ecef;
         border-radius: 0.75rem;
-        padding: 1.5rem;
         height: 100%;
+    }
+    .operations-card .card-header {
+        background-color: #fff;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .operations-card .nav-tabs .nav-link {
+        font-weight: 500;
     }
     .progress-label {
         font-size: 0.9rem;
         font-weight: 500;
     }
+    
+    /* Styles for mobile view */
+    @media (max-width: 767.98px) {
+        .profile-header {
+            padding: 1rem;
+        }
+        .profile-header h2 {
+            font-size: 1.5rem;
+        }
+        .stat-card {
+            padding: 0.75rem; /* Further reduced padding */
+        }
+        .stat-card .stat-icon {
+            font-size: 1.25rem; /* Smaller icon */
+        }
+        .stat-card .stat-value {
+            font-size: 1.5rem; /* Smaller font for the number */
+        }
+        .stat-card .card-title {
+            font-size: 0.7rem; /* Smaller title font */
+        }
+        .operations-card .card-body {
+            padding: 0.75rem; /* Reduced padding for operations card */
+        }
+        .operations-card h5 {
+            font-size: 1rem; /* Smaller heading */
+        }
+        .progress {
+            height: 1rem !important; /* Reduced progress bar height */
+        }
+        .progress-label {
+            font-size: 0.8rem;
+        }
+    }
 </style>
 
 <div class="container mt-4">
-    <div class="profile-header d-flex justify-content-between align-items-center">
-        <div>
+    <div class="profile-header d-flex flex-column flex-md-row justify-content-md-between align-items-md-center text-center text-md-start">
+        <div class="mb-3 mb-md-0">
             <h2 class="mb-1">Dashboard</h2>
             <p>Welcome back, {{ current_user.username }}!</p>
         </div>
-    </div>
-
-    {% if not current_user.is_active_admin %}
-        <div class="card text-center border-danger shadow-sm">
-            <div class="card-header bg-danger text-white">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Admin Functions Deactivated</strong>
-            </div>
-            <div class="card-body">
-                <h4 class="card-title">Your Account is Currently Inactive</h4>
-                <p class="card-text">Customers cannot place new orders and automated jobs are paused.</p>
-                {% if current_user.deactivation_reason %}
-                    <p class="text-muted border p-2 rounded">Reason: "{{ current_user.deactivation_reason }}"</p>
-                {% endif %}
-
-                <a href="{{ url_for('admin_reactivate_self') }}" class="btn btn-success btn-lg mt-2">
+        <div>
+            {% if not current_user.is_active_admin %}
+                <a href="{{ url_for('admin_reactivate_self') }}" class="btn btn-success">
                     <i class="fas fa-power-off me-2"></i> Reactivate
                 </a>
-            </div>
-        </div>
-    {% else %}
-        <div class="d-flex justify-content-end mb-3">
-            {% if current_user.role == 'milkman' %}
+            {% elif current_user.role == 'milkman' %}
                 <form method="POST" action="{{ url_for('milkman_deactivate_self') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-power-off me-2"></i> Deactivate
                     </button>
                 </form>
             {% endif %}
         </div>
+    </div>
 
+    {% if not current_user.is_active_admin %}
+        <div class="card text-center border-danger shadow-sm">
+            </div>
+    {% else %}
         <div class="row g-4 mb-4">
-            <div class="col-md-6">
+            <div class="col-6">
                 <div class="stat-card">
                     <div class="stat-icon"><i class="fas fa-users"></i></div>
                     <h5 class="card-title">Active Customers</h5>
                     <p class="stat-value">{{ active_customers }}</p>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-6">
                 <div class="stat-card">
                     <div class="stat-icon"><i class="fas fa-tractor"></i></div>
                     <h5 class="card-title">Active Farmers</h5>
@@ -152,11 +180,24 @@
             </div>
         </div>
 
-        <h4 class="mb-3">Today's Operations</h4>
-        <div class="row g-4 mb-5">
-            <div class="col-lg-6">
-                <div class="progress-card">
-                    <h5 class="mb-3"><i class="fas fa-sun me-2 text-warning"></i>Morning Session</h5>
+        <div class="operations-card mb-4">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="operationsTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="morning-tab" data-bs-toggle="tab" data-bs-target="#morning" type="button" role="tab" aria-controls="morning" aria-selected="true">
+                            <i class="fas fa-sun me-2 text-warning"></i>Morning
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="evening-tab" data-bs-toggle="tab" data-bs-target="#evening" type="button" role="tab" aria-controls="evening" aria-selected="false">
+                            <i class="fas fa-moon me-2 text-primary"></i>Evening
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body tab-content" id="operationsTabContent">
+                <div class="tab-pane fade show active p-3" id="morning" role="tabpanel" aria-labelledby="morning-tab">
+                    <h5 class="card-title mb-3">Morning Operations</h5>
                     <div class="mb-3">
                         <div class="d-flex justify-content-between progress-label">
                             <span>Cow Milk</span>
@@ -176,12 +217,9 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="col-lg-6">
-                <div class="progress-card">
-                    <h5 class="mb-3"><i class="fas fa-moon me-2 text-primary"></i>Evening Session</h5>
-                    <div class="mb-3">
+                <div class="tab-pane fade p-3" id="evening" role="tabpanel" aria-labelledby="evening-tab">
+                    <h5 class="card-title mb-3">Evening Operations</h5>
+                     <div class="mb-3">
                         <div class="d-flex justify-content-between progress-label">
                             <span>Cow Milk</span>
                             <span>{{ total_cow_collected_evening }} L / {{ total_cow_required_evening }} L</span>
@@ -205,33 +243,31 @@
 
         <h4 class="mb-3">Management Actions</h4>
         <div class="row g-3">
-            <div class="col-md-3">
+            <div class="col-4">
                 <a href="{{ url_for('manage_customers') }}" class="action-card">
                     <div class="action-icon"><i class="fas fa-users"></i></div>
                     <div class="action-title">Manage Customers</div>
                 </a>
             </div>
-            <div class="col-md-3">
+            <div class="col-4">
                 <a href="{{ url_for('manage_farmers') }}" class="action-card">
                     <div class="action-icon"><i class="fas fa-tractor"></i></div>
                     <div class="action-title">Manage Farmers</div>
                 </a>
             </div>
-            <div class="col-md-3">
+            <div class="col-4">
                 <a href="{{ url_for('milk_rates') }}" class="action-card">
                     <div class="action-icon"><i class="fas fa-tags"></i></div>
                     <div class="action-title">Set Milk Rates</div>
                 </a>
             </div>
-            <div class="col-md-3">
+            <div class="col-4">
                 <a href="{{ url_for('daily_log') }}" class="action-card">
                     <div class="action-icon"><i class="fas fa-book"></i></div>
                     <div class="action-title">Daily Log</div>
                 </a>
             </div>
-        </div>
-        <div class="row g-3 mt-3 justify-content-center">
-            <div class="col-md-3">
+            <div class="col-8">
                 <a href="{{ url_for('admin_analysis') }}" class="action-card">
                     <div class="action-icon"><i class="fas fa-chart-pie"></i></div>
                     <div class="action-title">Business Analysis</div>

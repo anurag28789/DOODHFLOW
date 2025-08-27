@@ -5,3 +5,5 @@ Flask-WTF
 Flask-SQLAlchemy
 WTForms
 passlib
+Flask-Migrate
+APScheduler

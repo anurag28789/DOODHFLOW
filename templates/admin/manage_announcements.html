@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Manage Announcements{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .profile-header {
+        background: linear-gradient(45deg, #0d6efd, #6c757d);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin-bottom: 2rem;
+    }
+    .card {
+        border-radius: 0.75rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    .announcement-card {
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="profile-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-1">Manage Announcements</h2>
+            <p class="mb-0">Create and post announcements for your customers and farmers.</p>
+        </div>
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-plus-circle me-2"></i>New Announcement</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label") }}
+                            {{ form.content(class="form-control", rows="5") }}
+                        </div>
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <h4 class="mb-3">Posted Announcements</h4>
+            {% for announcement in announcements %}
+            <div class="card announcement-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <h5 class="card-title">{{ announcement.title }}</h5>
+                        <small class="text-muted">{{ announcement.date_posted.strftime('%d-%b-%Y') }}</small>
+                    </div>
+                    <p class="card-text">{{ announcement.content }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="card card-body text-center">
+                <p class="text-muted mb-0">You haven't posted any announcements yet.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
