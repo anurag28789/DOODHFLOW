@@ -242,7 +242,7 @@ class DailyCollection(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     milkman_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     date = db.Column(db.Date, nullable=False, default=date.today)
-    session = db.Column(db.String(10), nullable=False)
+    # The 'session' column has been removed
     total_milk = db.Column(db.Float, nullable=False)
     total_amount = db.Column(db.Float, nullable=False) # Represents the value of milk collected
 

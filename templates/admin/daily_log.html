@@ -26,7 +26,7 @@
     <div class="profile-header d-flex justify-content-between align-items-center">
         <div>
             <h2 class="mb-1">Daily Log</h2>
-            <p class="mb-0">Record daily expenses and casual sales for {{ selected_date.strftime('%d %b %Y') }}</p>
+            <p class="mb-0">Record daily expenses, casual sales, and consolidated collections for {{ selected_date.strftime('%d %b %Y') }}</p>
         </div>
         <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
             <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
@@ -46,8 +46,44 @@
     </div>
 
 
-    <div class="row g-5">
-        <div class="col-md-6">
+    <div class="row g-4">
+        <!-- Consolidated Collection Column -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                   <h4><i class="fas fa-cubes me-2"></i>Total Day's Collection</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ collection_form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ collection_form.total_milk.label(class="form-label") }}
+                            {{ collection_form.total_milk(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ collection_form.total_value.label(class="form-label") }}
+                            {{ collection_form.total_value(class="form-control") }}
+                        </div>
+                        {{ collection_form.submit_collection(class="btn btn-primary", value="Save Day's Collection") }}
+                    </form>
+                </div>
+                 <div class="card-footer">
+                    <h5 class="mt-4">Today's Logged Collection</h5>
+                    {% if daily_collection %}
+                    <div class="alert alert-info">
+                        <strong>Total Milk:</strong> {{ daily_collection.total_milk }} L <br>
+                        <strong>Total Value:</strong> ₹{{ "%.2f"|format(daily_collection.total_amount) }}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No collection logged for this date yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Daily Expenses Column -->
+        <div class="col-lg-4">
             <div class="card h-100">
                 <div class="card-header">
                    <h4><i class="fas fa-wallet me-2"></i>Daily Expenses</h4>
@@ -72,24 +108,25 @@
                 </div>
                  <div class="card-footer">
                     <h5 class="mt-4">Logged Expenses</h5>
-                    <ul class="list-group">
+                    <ul class="list-group list-group-flush">
                         {% for expense in expenses %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                             <div>
                                 <strong>{{ expense.expense_type }}</strong>
                                 {% if expense.remarks %}<br><small class="text-muted">{{ expense.remarks }}</small>{% endif %}
                             </div>
-                            <span class="badge bg-danger rounded-pill">₹{{ "%.2f"|format(expense.amount) }}</span>
+                            <span class="badge bg-danger rounded-pill fs-6">₹{{ "%.2f"|format(expense.amount) }}</span>
                         </li>
                         {% else %}
-                        <li class="list-group-item">No expenses logged for this date.</li>
+                        <li class="list-group-item px-0">No expenses logged for this date.</li>
                         {% endfor %}
                     </ul>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-6">
+        <!-- Casual Sales Column -->
+        <div class="col-lg-4">
             <div class="card h-100">
                  <div class="card-header">
                     <h4><i class="fas fa-cash-register me-2"></i>Casual Sales</h4>
@@ -120,19 +157,19 @@
                 </div>
                 <div class="card-footer">
                     <h5 class="mt-4">Logged Sales</h5>
-                    <ul class="list-group">
+                    <ul class="list-group list-group-flush">
                         {% for sale in casual_sales %}
-                        <li class="list-group-item">
+                        <li class="list-group-item px-0">
                             <div class="d-flex justify-content-between align-items-center">
                                 <strong>{{ sale.session|capitalize }} Sale</strong>
-                                <span class="badge bg-success rounded-pill">₹{{ "%.2f"|format(sale.amount_collected) }}</span>
+                                <span class="badge bg-success rounded-pill fs-6">₹{{ "%.2f"|format(sale.amount_collected) }}</span>
                             </div>
                             <small class="text-muted">
                                 Cow: {{ sale.cow_qty }} L, Buffalo: {{ sale.buffalo_qty }} L
                             </small>
                         </li>
                         {% else %}
-                        <li class="list-group-item">No casual sales logged for this date.</li>
+                        <li class="list-group-item px-0">No casual sales logged for this date.</li>
                         {% endfor %}
                     </ul>
                 </div>

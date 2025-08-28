@@ -267,7 +267,14 @@
                     <div class="action-title">Daily Log</div>
                 </a>
             </div>
-            <div class="col-8">
+            <!-- NEW ACTION CARD FOR FARMER PAYOUTS -->
+            <div class="col-4">
+                <a href="{{ url_for('farmer_payouts') }}" class="action-card">
+                    <div class="action-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                    <div class="action-title">Farmer Payouts</div>
+                </a>
+            </div>
+            <div class="col-4">
                 <a href="{{ url_for('admin_analysis') }}" class="action-card">
                     <div class="action-icon"><i class="fas fa-chart-pie"></i></div>
                     <div class="action-title">Business Analysis</div>

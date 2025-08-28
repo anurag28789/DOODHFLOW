@@ -2560,21 +2560,39 @@ def daily_log():
         return redirect(url_for('daily_log', date=selected_date_str))
 
     if collection_form.validate_on_submit() and collection_form.submit_collection.data:
-        new_collection = DailyCollection(
+        # Check if an entry for this date already exists
+        existing_collection = DailyCollection.query.filter_by(
             milkman_id=current_user.id,
-            date=selected_date,
-            session=collection_form.session.data,
-            total_milk=collection_form.total_milk.data,
-            total_amount=collection_form.total_value.data
-        )
-        db.session.add(new_collection)
+            date=selected_date
+        ).first()
+
+        if existing_collection:
+            # Update the existing entry
+            existing_collection.total_milk = collection_form.total_milk.data
+            existing_collection.total_amount = collection_form.total_value.data
+            flash("Consolidated collection for today has been updated.", "success")
+        else:
+            # Create a new entry
+            new_collection = DailyCollection(
+                milkman_id=current_user.id,
+                date=selected_date,
+                total_milk=collection_form.total_milk.data,
+                total_amount=collection_form.total_value.data
+            )
+            db.session.add(new_collection)
+            flash("Consolidated milk collection value recorded successfully.", "success")
+        
         db.session.commit()
-        flash("Consolidated collection value recorded successfully.", "success")
         return redirect(url_for('daily_log', date=selected_date_str))
 
     expenses = Expense.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
     casual_sales = CasualSale.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
-    daily_collections = DailyCollection.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
+    daily_collection = DailyCollection.query.filter_by(milkman_id=current_user.id, date=selected_date).first()
+
+    # Pre-populate the form if an entry for the day already exists
+    if daily_collection and not collection_form.is_submitted():
+        collection_form.total_milk.data = daily_collection.total_milk
+        collection_form.total_value.data = daily_collection.total_amount
 
     return render_template(
         'admin/daily_log.html',
@@ -2583,9 +2601,10 @@ def daily_log():
         collection_form=collection_form,
         expenses=expenses,
         casual_sales=casual_sales,
-        daily_collections=daily_collections,
+        daily_collection=daily_collection, # Pass the single collection object
         selected_date=selected_date
     )
+
 
 
 def apply_future_rates():

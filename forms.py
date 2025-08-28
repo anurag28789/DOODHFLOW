@@ -328,9 +328,5 @@ class MilkCollectionForm(FlaskForm):
     """Form for logging the daily consolidated milk collection value."""
     total_milk = FloatField("Total Milk Collected (L)", validators=[DataRequired(), NumberRange(min=0)])
     total_value = FloatField("Total Value of Milk (₹)", validators=[DataRequired(), NumberRange(min=0)])
-    session = SelectField(
-        "Session",
-        choices=[('morning', 'Morning'), ('evening', 'Evening')],
-        validators=[DataRequired()]
-    )
+    # The 'session' field has been removed from this form
     submit_collection = SubmitField("Add Collection Value")
