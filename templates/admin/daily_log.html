@@ -20,18 +20,87 @@
         border: 1px solid #e9ecef;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
+    /* Styles for the sticky footer */
+    .sticky-footer {
+        position: sticky;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 1rem;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        backdrop-filter: blur(5px);
+        z-index: 1000;
+        border-top: 1px solid #dee2e6;
+    }
+    /* Add padding to the bottom of the form to prevent content from being hidden by the sticky footer */
+    .form-with-sticky-footer {
+        padding-bottom: 100px; /* Adjust as needed */
+    }
 </style>
 
 <div class="container mt-4">
     <div class="profile-header d-flex justify-content-between align-items-center">
         <div>
             <h2 class="mb-1">Daily Log</h2>
-            <p class="mb-0">Record daily expenses, casual sales, and consolidated collections for {{ selected_date.strftime('%d %b %Y') }}</p>
+            <p class="mb-0">Record daily entries for {{ selected_date.strftime('%d %b %Y') }}</p>
         </div>
         <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-light">
             <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
         </a>
     </div>
+
+    {% if updated_customers_info %}
+    <div class="alert alert-success mb-4">
+        <h5 class="alert-heading"><i class="fab fa-whatsapp me-2"></i>Notify Updated Customers</h5>
+        <p>Click a button below to send a WhatsApp notification for the requirements you just saved.</p>
+        <hr>
+        {% for name, phone, cow_qty, buffalo_qty, status, total_amount, cow_rate, buffalo_rate in updated_customers_info %}
+            {% set cow_subtotal = (cow_qty or 0) * (cow_rate or 0) %}
+            {% set buffalo_subtotal = (buffalo_qty or 0) * (buffalo_rate or 0) %}
+            {% set message = "*DoodhFlow Bill - " ~ session_name|capitalize ~ "*%0A" %}
+            {% set message = message ~ "--------------------%0A" %}
+            {% set message = message ~ "Hello " ~ name ~ ",%0A" %}
+            {% set message = message ~ "Here is your bill for " ~ selected_date.strftime('%d %B %Y') ~ ":%0A%0A" %}
+            {% if cow_qty > 0 %}{% set message = message ~ "Cow Milk: " ~ cow_qty ~ "L x ₹" ~ ("%.2f"|format(cow_rate)) ~ " = ₹" ~ ("%.2f"|format(cow_subtotal)) ~ "%0A" %}{% endif %}
+            {% if buffalo_qty > 0 %}{% set message = message ~ "Buffalo Milk: " ~ buffalo_qty ~ "L x ₹" ~ ("%.2f"|format(buffalo_rate)) ~ " = ₹" ~ ("%.2f"|format(buffalo_subtotal)) ~ "%0A" %}{% endif %}
+            {% set message = message ~ "%0A--------------------%0A" %}
+            {% set message = message ~ "*Total Amount: ₹" ~ ("%.2f"|format(total_amount)) ~ "*%0A" %}
+            {% set message = message ~ "Status: " ~ status|capitalize %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>{{ name }}</span>
+                <a href="https://wa.me/91{{ phone }}?text={{ message }}" target="_blank" class="btn btn-sm btn-success">
+                    <i class="fab fa-whatsapp me-1"></i> Notify {{ name }}
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if updated_farmers_info %}
+    <div class="alert alert-success mb-4">
+        <h5 class="alert-heading"><i class="fab fa-whatsapp me-2"></i>Notify Updated Farmers</h5>
+        <p>Click a button below to send a WhatsApp notification for the supply you just saved.</p>
+        <hr>
+        {% for name, phone, cow_qty, buffalo_qty, status, total_amount, cow_rate, buffalo_rate in updated_farmers_info %}
+            {% set cow_subtotal = (cow_qty or 0) * (cow_rate or 0) %}
+            {% set buffalo_subtotal = (buffalo_qty or 0) * (buffalo_rate or 0) %}
+            {% set message = "*DoodhFlow Supply Summary - " ~ session_name|capitalize ~ "*%0A" %}
+            {% set message = message ~ "--------------------%0A" %}
+            {% set message = message ~ "Hello " ~ name ~ ",%0A" %}
+            {% set message = message ~ "Your supply for today has been recorded:%0A%0A" %}
+            {% if cow_qty > 0 %}{% set message = message ~ "Cow Milk: " ~ cow_qty ~ "L x ₹" ~ ("%.2f"|format(cow_rate)) ~ " = ₹" ~ ("%.2f"|format(cow_subtotal)) ~ "%0A" %}{% endif %}
+            {% if buffalo_qty > 0 %}{% set message = message ~ "Buffalo Milk: " ~ buffalo_qty ~ "L x ₹" ~ ("%.2f"|format(buffalo_rate)) ~ " = ₹" ~ ("%.2f"|format(buffalo_subtotal)) ~ "%0A" %}{% endif %}
+            {% set message = message ~ "%0A--------------------%0A" %}
+            {% set message = message ~ "*Total Amount: ₹" ~ ("%.2f"|format(total_amount)) ~ "*%0A" %}
+            {% set message = message ~ "Status: " ~ status|capitalize %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>{{ name }}</span>
+                <a href="https://wa.me/91{{ phone }}?text={{ message }}" target="_blank" class="btn btn-sm btn-success">
+                    <i class="fab fa-whatsapp me-1"></i> Notify {{ name }}
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="card mb-4">
         <div class="card-body">
@@ -45,136 +114,283 @@
         </div>
     </div>
 
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab" aria-controls="customers" aria-selected="true">Customer Requirements</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="farmers-tab" data-bs-toggle="tab" data-bs-target="#farmers" type="button" role="tab" aria-controls="farmers" aria-selected="false">Farmer Supplies</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="sales-expenses-tab" data-bs-toggle="tab" data-bs-target="#sales-expenses" type="button" role="tab" aria-controls="sales-expenses" aria-selected="false">Casual Sales & Expenses</button>
+      </li>
+    </ul>
 
-    <div class="row g-4">
-        <!-- Consolidated Collection Column -->
-        <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header">
-                   <h4><i class="fas fa-cubes me-2"></i>Total Day's Collection</h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" novalidate>
-                        {{ collection_form.hidden_tag() }}
-                        <div class="mb-3">
-                            {{ collection_form.total_milk.label(class="form-label") }}
-                            {{ collection_form.total_milk(class="form-control") }}
-                        </div>
-                        <div class="mb-3">
-                            {{ collection_form.total_value.label(class="form-label") }}
-                            {{ collection_form.total_value(class="form-control") }}
-                        </div>
-                        {{ collection_form.submit_collection(class="btn btn-primary", value="Save Day's Collection") }}
-                    </form>
-                </div>
-                 <div class="card-footer">
-                    <h5 class="mt-4">Today's Logged Collection</h5>
-                    {% if daily_collection %}
-                    <div class="alert alert-info">
-                        <strong>Total Milk:</strong> {{ daily_collection.total_milk }} L <br>
-                        <strong>Total Value:</strong> ₹{{ "%.2f"|format(daily_collection.total_amount) }}
-                    </div>
-                    {% else %}
-                    <p class="text-muted">No collection logged for this date yet.</p>
+    <div class="tab-content" id="myTabContent">
+      <div class="tab-pane fade show active" id="customers" role="tabpanel" aria-labelledby="customers-tab">
+        <div class="card card-body">
+            <div class="btn-group w-100 mb-3" role="group">
+                <a href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session='morning') }}" class="btn btn-outline-primary {% if session_name == 'morning' %}active{% endif %}">
+                    <i class="fas fa-sun me-2"></i>Morning
+                </a>
+                <a href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session='evening') }}" class="btn btn-outline-primary {% if session_name == 'evening' %}active{% endif %}">
+                    <i class="fas fa-moon me-2"></i>Evening
+                </a>
+            </div>
+            <h4>Customer Requirements - {{ session_name|capitalize }}</h4>
+            <form method="post" class="form-with-sticky-footer">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Cow Milk (L)</th>
+                            <th>Buffalo Milk (L)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in customers %}
+                        <tr>
+                            <td>{{ customer.name }}</td>
+                            <td><input type="number" step="0.1" name="cow_{{ customer.id }}" class="form-control"></td>
+                            <td><input type="number" step="0.1" name="buffalo_{{ customer.id }}" class="form-control"></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No more customer requirements to add for this session.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if customers_pagination and customers_pagination.pages > 1 %}
+                <nav>
+                  <ul class="pagination">
+                    {% if customers_pagination.has_prev %}
+                      <li class="page-item"><a class="page-link" href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session=session_name, customer_page=customers_pagination.prev_num) }}">Previous</a></li>
                     {% endif %}
-                </div>
-            </div>
-        </div>
-
-
-        <!-- Daily Expenses Column -->
-        <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header">
-                   <h4><i class="fas fa-wallet me-2"></i>Daily Expenses</h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" novalidate>
-                        {{ expense_form.hidden_tag() }}
-                        <div class="mb-3">
-                            {{ expense_form.expense_type.label(class="form-label") }}
-                            {{ expense_form.expense_type(class="form-select") }}
-                        </div>
-                        <div class="mb-3">
-                            {{ expense_form.amount.label(class="form-label") }}
-                            {{ expense_form.amount(class="form-control") }}
-                        </div>
-                        <div class="mb-3">
-                            {{ expense_form.remarks.label(class="form-label") }}
-                            {{ expense_form.remarks(class="form-control") }}
-                        </div>
-                        {{ expense_form.submit_expense(class="btn btn-primary") }}
-                    </form>
-                </div>
-                 <div class="card-footer">
-                    <h5 class="mt-4">Logged Expenses</h5>
-                    <ul class="list-group list-group-flush">
-                        {% for expense in expenses %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <div>
-                                <strong>{{ expense.expense_type }}</strong>
-                                {% if expense.remarks %}<br><small class="text-muted">{{ expense.remarks }}</small>{% endif %}
-                            </div>
-                            <span class="badge bg-danger rounded-pill fs-6">₹{{ "%.2f"|format(expense.amount) }}</span>
-                        </li>
+                    {% for num in customers_pagination.iter_pages() %}
+                      {% if num %}
+                        {% if customers_pagination.page == num %}
+                          <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
                         {% else %}
-                        <li class="list-group-item px-0">No expenses logged for this date.</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-        </div>
+                          <li class="page-item"><a class="page-link" href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session=session_name, customer_page=num) }}">{{ num }}</a></li>
+                        {% endif %}
+                      {% else %}
+                        <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                      {% endif %}
+                    {% endfor %}
+                    {% if customers_pagination.has_next %}
+                      <li class="page-item"><a class="page-link" href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session=session_name, customer_page=customers_pagination.next_num) }}">Next</a></li>
+                    {% endif %}
+                  </ul>
+                </nav>
+                {% endif %}
 
-        <!-- Casual Sales Column -->
-        <div class="col-lg-4">
-            <div class="card h-100">
-                 <div class="card-header">
-                    <h4><i class="fas fa-cash-register me-2"></i>Casual Sales</h4>
+                {% if customers %}
+                <div class="sticky-footer text-end">
+                    <button type="submit" name="submit_requirements" class="btn btn-primary btn-lg">Save Customer Requirements</button>
                 </div>
-                <div class="card-body">
-                    <form method="POST" novalidate>
-                        {{ sale_form.hidden_tag() }}
-                        <div class="mb-3">
-                            {{ sale_form.session.label(class="form-label") }}
-                            {{ sale_form.session(class="form-select") }}
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                {{ sale_form.cow_qty.label(class="form-label") }}
-                                {{ sale_form.cow_qty(class="form-control") }}
-                            </div>
-                            <div class="col-6 mb-3">
-                                {{ sale_form.buffalo_qty.label(class="form-label") }}
-                                {{ sale_form.buffalo_qty(class="form-control") }}
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            {{ sale_form.amount_collected.label(class="form-label") }}
-                            {{ sale_form.amount_collected(class="form-control") }}
-                        </div>
-                        {{ sale_form.submit_sale(class="btn btn-primary") }}
-                    </form>
-                </div>
-                <div class="card-footer">
-                    <h5 class="mt-4">Logged Sales</h5>
-                    <ul class="list-group list-group-flush">
-                        {% for sale in casual_sales %}
-                        <li class="list-group-item px-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <strong>{{ sale.session|capitalize }} Sale</strong>
-                                <span class="badge bg-success rounded-pill fs-6">₹{{ "%.2f"|format(sale.amount_collected) }}</span>
-                            </div>
-                            <small class="text-muted">
-                                Cow: {{ sale.cow_qty }} L, Buffalo: {{ sale.buffalo_qty }} L
-                            </small>
-                        </li>
+                {% endif %}
+            </form>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="farmers" role="tabpanel" aria-labelledby="farmers-tab">
+        <div class="card card-body">
+            <div class="btn-group w-100 mb-3" role="group">
+                <a href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session='morning') }}" class="btn btn-outline-primary {% if session_name == 'morning' %}active{% endif %}">
+                    <i class="fas fa-sun me-2"></i>Morning
+                </a>
+                <a href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session='evening') }}" class="btn btn-outline-primary {% if session_name == 'evening' %}active{% endif %}">
+                    <i class="fas fa-moon me-2"></i>Evening
+                </a>
+            </div>
+            <h4>Farmer Supplies - {{ session_name|capitalize }}</h4>
+            <form method="post" class="form-with-sticky-footer">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Farmer</th>
+                            <th>Cow Milk (L)</th>
+                            <th>Buffalo Milk (L)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for farmer in farmers %}
+                        <tr>
+                            <td>{{ farmer.name }}</td>
+                            <td><input type="number" step="0.1" name="farmer_cow_{{ farmer.id }}" class="form-control"></td>
+                            <td><input type="number" step="0.1" name="farmer_buffalo_{{ farmer.id }}" class="form-control"></td>
+                        </tr>
                         {% else %}
-                        <li class="list-group-item px-0">No casual sales logged for this date.</li>
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No more farmer supplies to add for this session.</td>
+                        </tr>
                         {% endfor %}
-                    </ul>
+                    </tbody>
+                </table>
+                
+                {% if farmers_pagination and farmers_pagination.pages > 1 %}
+                <nav>
+                  <ul class="pagination">
+                    {% if farmers_pagination.has_prev %}
+                      <li class="page-item"><a class="page-link" href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session=session_name, farmer_page=farmers_pagination.prev_num) }}">Previous</a></li>
+                    {% endif %}
+                    {% for num in farmers_pagination.iter_pages() %}
+                      {% if num %}
+                        {% if farmers_pagination.page == num %}
+                          <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                        {% else %}
+                          <li class="page-item"><a class="page-link" href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session=session_name, farmer_page=num) }}">{{ num }}</a></li>
+                        {% endif %}
+                      {% else %}
+                        <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                      {% endif %}
+                    {% endfor %}
+                    {% if farmers_pagination.has_next %}
+                      <li class="page-item"><a class="page-link" href="{{ url_for('daily_log', date=selected_date.strftime('%Y-%m-%d'), session=session_name, farmer_page=farmers_pagination.next_num) }}">Next</a></li>
+                    {% endif %}
+                  </ul>
+                </nav>
+                {% endif %}
+
+                {% if farmers %}
+                <div class="sticky-footer text-end">
+                    <button type="submit" name="submit_supplies" class="btn btn-primary btn-lg">Save Farmer Supplies</button>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="sales-expenses" role="tabpanel" aria-labelledby="sales-expenses-tab">
+          <div class="row g-4 mt-1">
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                       <h4><i class="fas fa-cubes me-2"></i>Total Day's Collection</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" novalidate>
+                            {{ collection_form.hidden_tag() }}
+                            <div class="mb-3">
+                                {{ collection_form.total_milk.label(class="form-label") }}
+                                {{ collection_form.total_milk(class="form-control") }}
+                            </div>
+                            <div class="mb-3">
+                                {{ collection_form.total_value.label(class="form-label") }}
+                                {{ collection_form.total_value(class="form-control") }}
+                            </div>
+                            {{ collection_form.submit_collection(class="btn btn-primary", value="Save Day's Collection") }}
+                        </form>
+                    </div>
+                     <div class="card-footer">
+                        <h5 class="mt-4">Today's Logged Collection</h5>
+                        {% if daily_collection %}
+                        <div class="alert alert-info">
+                            <strong>Total Milk:</strong> {{ daily_collection.total_milk }} L <br>
+                            <strong>Total Value:</strong> ₹{{ "%.2f"|format(daily_collection.total_amount) }}
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No collection logged for this date yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                       <h4><i class="fas fa-wallet me-2"></i>Daily Expenses</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" novalidate>
+                            {{ expense_form.hidden_tag() }}
+                            <div class="mb-3">
+                                {{ expense_form.expense_type.label(class="form-label") }}
+                                {{ expense_form.expense_type(class="form-select") }}
+                            </div>
+                            <div class="mb-3">
+                                {{ expense_form.amount.label(class="form-label") }}
+                                {{ expense_form.amount(class="form-control") }}
+                            </div>
+                            <div class="mb-3">
+                                {{ expense_form.remarks.label(class="form-label") }}
+                                {{ expense_form.remarks(class="form-control") }}
+                            </div>
+                            {{ expense_form.submit_expense(class="btn btn-primary") }}
+                        </form>
+                    </div>
+                     <div class="card-footer">
+                        <h5 class="mt-4">Logged Expenses</h5>
+                        <ul class="list-group list-group-flush">
+                            {% for expense in expenses %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    <strong>{{ expense.expense_type }}</strong>
+                                    {% if expense.remarks %}<br><small class="text-muted">{{ expense.remarks }}</small>{% endif %}
+                                </div>
+                                <span class="badge bg-danger rounded-pill fs-6">₹{{ "%.2f"|format(expense.amount) }}</span>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item px-0">No expenses logged for this date.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card h-100">
+                     <div class="card-header">
+                        <h4><i class="fas fa-cash-register me-2"></i>Casual Sales</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" novalidate>
+                            {{ sale_form.hidden_tag() }}
+                            <div class="mb-3">
+                                {{ sale_form.session.label(class="form-label") }}
+                                {{ sale_form.session(class="form-select") }}
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    {{ sale_form.cow_qty.label(class="form-label") }}
+                                    {{ sale_form.cow_qty(class="form-control") }}
+                                </div>
+                                <div class="col-6 mb-3">
+                                    {{ sale_form.buffalo_qty.label(class="form-label") }}
+                                    {{ sale_form.buffalo_qty(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {{ sale_form.amount_collected.label(class="form-label") }}
+                                {{ sale_form.amount_collected(class="form-control") }}
+                            </div>
+                            {{ sale_form.submit_sale(class="btn btn-primary") }}
+                        </form>
+                    </div>
+                    <div class="card-footer">
+                        <h5 class="mt-4">Logged Sales</h5>
+                        <ul class="list-group list-group-flush">
+                            {% for sale in casual_sales %}
+                            <li class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>{{ sale.session|capitalize }} Sale</strong>
+                                    <span class="badge bg-success rounded-pill fs-6">₹{{ "%.2f"|format(sale.amount_collected) }}</span>
+                                </div>
+                                <small class="text-muted">
+                                    Cow: {{ sale.cow_qty }} L, Buffalo: {{ sale.buffalo_qty }} L
+                                </small>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item px-0">No casual sales logged for this date.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
+      </div>
     </div>
 </div>
 {% endblock %}

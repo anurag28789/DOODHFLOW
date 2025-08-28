@@ -2522,87 +2522,191 @@ def daily_log():
         flash("Access denied.", "danger")
         return redirect(url_for('home'))
 
+    # --- Standard form and date setup ---
     expense_form = ExpenseForm(prefix='expense')
     sale_form = CasualSaleForm(prefix='sale')
     collection_form = MilkCollectionForm(prefix='collection')
-
     selected_date_str = request.args.get('date', date.today().strftime('%Y-%m-%d'))
     try:
         selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
     except ValueError:
         selected_date = date.today()
+    session_name = request.args.get('session', 'morning').lower()
 
-    if expense_form.validate_on_submit() and expense_form.submit_expense.data:
-        new_expense = Expense(
-            milkman_id=current_user.id,
-            date=selected_date,
-            expense_type=expense_form.expense_type.data,
-            amount=expense_form.amount.data,
-            remarks=expense_form.remarks.data
-        )
-        db.session.add(new_expense)
-        db.session.commit()
-        flash("Expense recorded successfully.", "success")
-        return redirect(url_for('daily_log', date=selected_date_str))
+    # --- NOTIFICATION LOGIC (GET REQUEST) ---
+    updated_customers_info = []
+    if 'updated_customers' in session:
+        updated_data = session.pop('updated_customers', {})
+        if updated_data.get('date') == selected_date.strftime('%Y-%m-%d') and updated_data.get('session') == session_name:
+            customer_ids = updated_data.get('ids', [])
+            updated_customers_info = db.session.query(
+                Customer.name, Customer.phone, Requirement.cow_qty, Requirement.buffalo_qty,
+                Requirement.status, # <-- Added status
+                ((Requirement.cow_qty * Requirement.cow_rate_at_order) + (Requirement.buffalo_qty * Requirement.buffalo_rate_at_order)),
+                Requirement.cow_rate_at_order, Requirement.buffalo_rate_at_order
+            ).join(Requirement, Customer.id == Requirement.customer_id)\
+             .filter(
+                Customer.id.in_(customer_ids),
+                Requirement.date_requested == selected_date,
+                Requirement.session == session_name
+            ).all()
 
-    if sale_form.validate_on_submit() and sale_form.submit_sale.data:
-        new_sale = CasualSale(
-            milkman_id=current_user.id,
-            date=selected_date,
-            session=sale_form.session.data,
-            cow_qty=sale_form.cow_qty.data,
-            buffalo_qty=sale_form.buffalo_qty.data,
-            amount_collected=sale_form.amount_collected.data
-        )
-        db.session.add(new_sale)
-        db.session.commit()
-        flash("Casual sale recorded successfully.", "success")
-        return redirect(url_for('daily_log', date=selected_date_str))
+    updated_farmers_info = []
+    if 'updated_farmers' in session:
+        updated_data = session.pop('updated_farmers', {})
+        if updated_data.get('date') == selected_date.strftime('%Y-%m-%d') and updated_data.get('session') == session_name:
+            farmer_ids = updated_data.get('ids', [])
+            updated_farmers_info = db.session.query(
+                Farmer.name, Farmer.phone, Collection.cow_qty, Collection.buffalo_qty,
+                Collection.status, # <-- Added status
+                Collection.total_amount, Farmer.cow_rate, Farmer.buffalo_rate
+            ).join(Collection, Farmer.id == Collection.farmer_id)\
+             .filter(
+                Farmer.id.in_(farmer_ids),
+                Collection.date == selected_date,
+                Collection.session == session_name
+            ).all()
 
-    if collection_form.validate_on_submit() and collection_form.submit_collection.data:
-        # Check if an entry for this date already exists
-        existing_collection = DailyCollection.query.filter_by(
-            milkman_id=current_user.id,
-            date=selected_date
-        ).first()
+    # --- PAGINATION LOGIC ---
+    customer_page = request.args.get('customer_page', 1, type=int)
+    farmer_page = request.args.get('farmer_page', 1, type=int)
+    
+    existing_customer_subquery = db.session.query(Requirement.customer_id).filter(
+        Requirement.date_requested == selected_date, Requirement.session == session_name
+    ).subquery()
+    
+    customers_query = Customer.query.filter(
+        Customer.active == True, ~Customer.id.in_(existing_customer_subquery)
+    )
+    if current_user.role == 'milkman':
+        customers_query = customers_query.filter(Customer.milkman_id == current_user.id)
+    customers_pagination = customers_query.order_by(Customer.name).paginate(page=customer_page, per_page=10, error_out=False)
+    customers_on_page = customers_pagination.items
 
-        if existing_collection:
-            # Update the existing entry
-            existing_collection.total_milk = collection_form.total_milk.data
-            existing_collection.total_amount = collection_form.total_value.data
-            flash("Consolidated collection for today has been updated.", "success")
-        else:
-            # Create a new entry
-            new_collection = DailyCollection(
-                milkman_id=current_user.id,
-                date=selected_date,
-                total_milk=collection_form.total_milk.data,
-                total_amount=collection_form.total_value.data
+    existing_farmer_subquery = db.session.query(Collection.farmer_id).filter(
+        Collection.date == selected_date, Collection.session == session_name
+    ).subquery()
+
+    farmers_query = Farmer.query.filter(
+        Farmer.active == True, ~Farmer.id.in_(existing_farmer_subquery)
+    )
+    if current_user.role == 'milkman':
+        farmers_query = farmers_query.filter(Farmer.milkman_id == current_user.id)
+    farmers_pagination = farmers_query.order_by(Farmer.name).paginate(page=farmer_page, per_page=10, error_out=False)
+    farmers_on_page = farmers_pagination.items
+
+    # --- POST Handling ---
+    if request.method == 'POST':
+        # (The rest of the POST handling logic remains the same...)
+        if expense_form.submit_expense.data and expense_form.validate():
+            new_expense = Expense(
+                milkman_id=current_user.id, date=selected_date,
+                expense_type=expense_form.expense_type.data, amount=expense_form.amount.data,
+                remarks=expense_form.remarks.data
             )
-            db.session.add(new_collection)
-            flash("Consolidated milk collection value recorded successfully.", "success")
-        
-        db.session.commit()
-        return redirect(url_for('daily_log', date=selected_date_str))
+            db.session.add(new_expense)
+            db.session.commit()
+            flash("Expense recorded successfully.", "success")
+            return redirect(url_for('daily_log', date=selected_date_str))
 
+        if sale_form.submit_sale.data and sale_form.validate():
+            new_sale = CasualSale(
+                milkman_id=current_user.id, date=selected_date, session=sale_form.session.data,
+                cow_qty=sale_form.cow_qty.data, buffalo_qty=sale_form.buffalo_qty.data,
+                amount_collected=sale_form.amount_collected.data
+            )
+            db.session.add(new_sale)
+            db.session.commit()
+            flash("Casual sale recorded successfully.", "success")
+            return redirect(url_for('daily_log', date=selected_date_str))
+
+        if collection_form.submit_collection.data and collection_form.validate():
+            existing_collection = DailyCollection.query.filter_by(
+                milkman_id=current_user.id, date=selected_date
+            ).first()
+            if existing_collection:
+                existing_collection.total_milk = collection_form.total_milk.data
+                existing_collection.total_amount = collection_form.total_value.data
+                flash("Consolidated collection for today has been updated.", "success")
+            else:
+                new_collection = DailyCollection(
+                    milkman_id=current_user.id, date=selected_date,
+                    total_milk=collection_form.total_milk.data,
+                    total_amount=collection_form.total_value.data
+                )
+                db.session.add(new_collection)
+                flash("Consolidated milk collection value recorded successfully.", "success")
+            db.session.commit()
+            return redirect(url_for('daily_log', date=selected_date_str))
+        
+        if 'submit_requirements' in request.form:
+            customers_to_update_ids = []
+            for customer in customers_on_page:
+                cow_qty_raw = request.form.get(f'cow_{customer.id}')
+                buffalo_qty_raw = request.form.get(f'buffalo_{customer.id}')
+                if cow_qty_raw or buffalo_qty_raw:
+                    if (float(cow_qty_raw or 0) > 0) or (float(buffalo_qty_raw or 0) > 0):
+                        customers_to_update_ids.append(customer.id)
+                        req = Requirement(
+                            customer_id=customer.id, date_requested=selected_date, session=session_name,
+                            cow_qty=float(cow_qty_raw or 0), buffalo_qty=float(buffalo_qty_raw or 0),
+                            status='unpaid', cow_rate_at_order=customer.cow_rate or 0,
+                            buffalo_rate_at_order=customer.buffalo_rate or 0
+                        )
+                        db.session.add(req)
+            if customers_to_update_ids:
+                session['updated_customers'] = {
+                    'ids': customers_to_update_ids, 'date': selected_date.strftime('%Y-%m-%d'), 'session': session_name
+                }
+            db.session.commit()
+            flash('Customer requirements saved.', 'success')
+            return redirect(url_for('daily_log', date=selected_date_str, session=session_name, customer_page=customer_page))
+
+        if 'submit_supplies' in request.form:
+            farmers_to_update_ids = []
+            for farmer in farmers_on_page:
+                cow_qty_raw = request.form.get(f'farmer_cow_{farmer.id}')
+                buffalo_qty_raw = request.form.get(f'farmer_buffalo_{farmer.id}')
+                if cow_qty_raw or buffalo_qty_raw:
+                    if (float(cow_qty_raw or 0) > 0) or (float(buffalo_qty_raw or 0) > 0):
+                        farmers_to_update_ids.append(farmer.id)
+                        cow_qty = float(cow_qty_raw or 0)
+                        buffalo_qty = float(buffalo_qty_raw or 0)
+                        cow_amount = cow_qty * (farmer.cow_rate or 0)
+                        buffalo_amount = buffalo_qty * (farmer.buffalo_rate or 0)
+                        entry = Collection(
+                            farmer_id=farmer.id, date=selected_date, session=session_name,
+                            cow_qty=cow_qty, buffalo_qty=buffalo_qty, status='unpaid',
+                            cow_amount=cow_amount, buffalo_amount=buffalo_amount,
+                            total_amount = cow_amount + buffalo_amount
+                        )
+                        db.session.add(entry)
+            if farmers_to_update_ids:
+                session['updated_farmers'] = {
+                    'ids': farmers_to_update_ids, 'date': selected_date.strftime('%Y-%m-%d'), 'session': session_name
+                }
+            db.session.commit()
+            flash('Farmer supplies saved.', 'success')
+            return redirect(url_for('daily_log', date=selected_date_str, session=session_name, farmer_page=farmer_page))
+            
+    # --- Data fetching for other sections ---
     expenses = Expense.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
     casual_sales = CasualSale.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
     daily_collection = DailyCollection.query.filter_by(milkman_id=current_user.id, date=selected_date).first()
 
-    # Pre-populate the form if an entry for the day already exists
     if daily_collection and not collection_form.is_submitted():
         collection_form.total_milk.data = daily_collection.total_milk
         collection_form.total_value.data = daily_collection.total_amount
 
     return render_template(
         'admin/daily_log.html',
-        expense_form=expense_form,
-        sale_form=sale_form,
-        collection_form=collection_form,
-        expenses=expenses,
-        casual_sales=casual_sales,
-        daily_collection=daily_collection, # Pass the single collection object
-        selected_date=selected_date
+        expense_form=expense_form, sale_form=sale_form, collection_form=collection_form,
+        expenses=expenses, casual_sales=casual_sales, daily_collection=daily_collection,
+        customers_pagination=customers_pagination, customers=customers_on_page,
+        farmers_pagination=farmers_pagination, farmers=farmers_on_page,
+        selected_date=selected_date, session_name=session_name,
+        updated_customers_info=updated_customers_info,
+        updated_farmers_info=updated_farmers_info
     )
 
 
