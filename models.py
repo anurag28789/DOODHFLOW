@@ -236,3 +236,24 @@ class Announcement(db.Model):
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     milkman = db.relationship('User', backref='announcements')
+
+class DailyCollection(db.Model):
+    __tablename__ = 'daily_collection'
+    id = db.Column(db.Integer, primary_key=True)
+    milkman_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=date.today)
+    session = db.Column(db.String(10), nullable=False)
+    total_milk = db.Column(db.Float, nullable=False)
+    total_amount = db.Column(db.Float, nullable=False) # Represents the value of milk collected
+
+    milkman = db.relationship('User', backref='daily_collections')
+
+class FarmerPayout(db.Model):
+    __tablename__ = 'farmer_payout'
+    id = db.Column(db.Integer, primary_key=True)
+    milkman_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    payment_date = db.Column(db.Date, nullable=False, default=date.today)
+    remarks = db.Column(db.String(255), nullable=True)
+
+    milkman = db.relationship('User', backref='farmer_payouts')

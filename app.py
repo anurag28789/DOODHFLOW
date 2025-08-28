@@ -23,22 +23,22 @@ import os
 from os import path
 from functools import wraps
 
+# Correctly import all necessary models, including the new ones
 from models import (
     User, Customer, Requirement,
     Farmer, Payment, MilkRate, Collection, Expense, CasualSale,
-    Announcement
+    Announcement, DailyCollection, FarmerPayout
 )
 
+# Correctly import all necessary forms, including the new ones
 from forms import (
     CustomerForm, CustomerLoginForm, RequirementForm,
     FarmerForm, MilkRateForm, AdminDeactivationForm,
     PaymentForm, UserForm, MilkmanProfileForm, ExpenseForm, CasualSaleForm,
-    AnnouncementForm
+    AnnouncementForm, MilkCollectionForm, FarmerPayoutForm
 )
 
 from db import db  # Your database instance
-
-
 
 # ------------------------
 # Init App + Config
@@ -682,31 +682,37 @@ def generate_customer_bill(customer_id):
 
     db.session.commit()
 
-    # --- NEW: Construct and save the detailed WhatsApp message to the session ---
-    whatsapp_message = f"Hello {customer.name},\n\nHere is a detailed summary of your recent bill:\n"
-    for detail in bill_details:
-        whatsapp_message += f"\n* {detail['date']}:"
-        cow_total = detail['cow_qty'] * detail['cow_rate']
-        buffalo_total = detail['buffalo_qty'] * detail['buffalo_rate']
+    # --- UPDATED WHATSAPP MESSAGE STRUCTURE ---
+    whatsapp_message = f"*DoodhFlow Bill - Bulk Generation*\n"
+    whatsapp_message += "--------------------\n"
+    whatsapp_message += f"Hello {customer.name},\n"
+    whatsapp_message += f"Here is your bill summary:\n\n"
 
+    for detail in bill_details:
+        cow_subtotal = detail['cow_qty'] * detail['cow_rate']
+        buffalo_subtotal = detail['buffalo_qty'] * detail['buffalo_rate']
+        
+        whatsapp_message += f"Date: {detail['date']}\n"
         if detail['cow_qty'] > 0:
-            whatsapp_message += f"\n  - Cow Milk: {detail['cow_qty']} L @ ₹{detail['cow_rate']:.2f}/L = ₹{cow_total:.2f}"
+            whatsapp_message += f"Cow Milk: {detail['cow_qty']}L x ₹{detail['cow_rate']:.2f} = ₹{cow_subtotal:.2f}\n"
         if detail['buffalo_qty'] > 0:
-            whatsapp_message += f"\n  - Buffalo Milk: {detail['buffalo_qty']} L @ ₹{detail['buffalo_rate']:.2f}/L = ₹{buffalo_total:.2f}"
-            
-    whatsapp_message += f"\n--------------------\n*Total Amount Due: ₹{total_amount:.2f}*\n\nThank you for your business!\nDoodhFlow"
-    
+            whatsapp_message += f"Buffalo Milk: {detail['buffalo_qty']}L x ₹{detail['buffalo_rate']:.2f} = ₹{buffalo_subtotal:.2f}\n"
+        whatsapp_message += "\n"
+
+    whatsapp_message += "--------------------\n"
+    whatsapp_message += f"*Total Amount: ₹{total_amount:.2f}*\n"
+    whatsapp_message += f"Status: Paid"
+    # --- END UPDATED WHATSAPP MESSAGE STRUCTURE ---
+
     session['bulk_bill_notification'] = {
         'customer_name': customer.name,
         'customer_phone': customer.phone,
         'message': whatsapp_message
     }
-    # --- END NEW ---
 
     flash(f"Bill for ₹{total_amount:.2f} generated and {len(requirements)} orders marked as paid.", "success")
 
     return redirect(url_for('admin_customer_order_history', customer_id=customer_id))
-
 
 @app.route('/customer/order_history')
 @login_required
@@ -2268,6 +2274,7 @@ def admin_analysis():
             milkman_id = current_user.id
         elif current_user.role == 'admin' and selected_milkman_id:
             milkman_id = selected_milkman_id
+        
         if milkman_id:
             if model == 'customer':
                 query = query.filter(Customer.milkman_id == milkman_id)
@@ -2277,8 +2284,11 @@ def admin_analysis():
                 query = query.filter(CasualSale.milkman_id == milkman_id)
             elif model == 'expense':
                 query = query.filter(Expense.milkman_id == milkman_id)
+            elif model == 'daily_collection':
+                query = query.filter(DailyCollection.milkman_id == milkman_id)
+            elif model == 'farmer_payout':
+                query = query.filter(FarmerPayout.milkman_id == milkman_id)
         return query
-
 
     def get_revenue(s, e):
         req_query = db.session.query(
@@ -2300,7 +2310,6 @@ def admin_analysis():
         
         return req_revenue + casual_revenue
 
-
     revenue_current = get_revenue(start_date, end_date)
     revenue_previous = get_revenue(prev_start_date, prev_end_date)
 
@@ -2312,12 +2321,11 @@ def admin_analysis():
     revenue_percent_change = percent_change(revenue_current, revenue_previous)
 
     payouts_query = db.session.query(
-        func.coalesce(func.sum(Collection.total_amount), 0)
-    ).join(Farmer).filter(
-        Collection.status == 'paid',
-        Collection.date.between(start_date, end_date)
+        func.coalesce(func.sum(FarmerPayout.amount), 0)
+    ).filter(
+        FarmerPayout.payment_date.between(start_date, end_date)
     )
-    payouts_query = apply_milkman_filter(payouts_query, 'farmer')
+    payouts_query = apply_milkman_filter(payouts_query, 'farmer_payout')
     farmer_payouts = float(payouts_query.scalar())
 
     expenses_query = db.session.query(
@@ -2328,13 +2336,23 @@ def admin_analysis():
     expenses_query = apply_milkman_filter(expenses_query, 'expense')
     total_expenses = float(expenses_query.scalar())
 
-    procured_query = db.session.query(
+    procured_individual_query = db.session.query(
         func.coalesce(func.sum(Collection.cow_qty + Collection.buffalo_qty), 0)
     ).join(Farmer).filter(
         Collection.date.between(start_date, end_date)
     )
-    procured_query = apply_milkman_filter(procured_query, 'farmer')
-    milk_procured = float(procured_query.scalar())
+    procured_individual_query = apply_milkman_filter(procured_individual_query, 'farmer')
+    milk_procured_individual = float(procured_individual_query.scalar())
+
+    procured_daily_query = db.session.query(
+        func.coalesce(func.sum(DailyCollection.total_milk), 0)
+    ).filter(
+        DailyCollection.date.between(start_date, end_date)
+    )
+    procured_daily_query = apply_milkman_filter(procured_daily_query, 'daily_collection')
+    milk_procured_daily = float(procured_daily_query.scalar())
+    
+    milk_procured = milk_procured_individual + milk_procured_daily
 
     sold_query = db.session.query(
          func.coalesce(func.sum(Requirement.cow_qty + Requirement.buffalo_qty), 0)
@@ -2376,14 +2394,19 @@ def admin_analysis():
                     .order_by(desc(total_supplied)) \
                     .limit(5).all()
 
-    due_pay_query = db.session.query(
-        func.coalesce(func.sum(Collection.total_amount), 0)
-    ).join(Farmer).filter(
-        Collection.status == 'unpaid',
-        Collection.date.between(start_date, end_date)
-    )
-    due_pay_query = apply_milkman_filter(due_pay_query, 'farmer')
-    remaining_due_pay = float(due_pay_query.scalar())
+    total_value_individual_unpaid_q = db.session.query(func.coalesce(func.sum(Collection.total_amount), 0)).join(Farmer).filter(Collection.status == 'unpaid')
+    total_value_individual_unpaid_q = apply_milkman_filter(total_value_individual_unpaid_q, 'farmer')
+    total_value_individual_unpaid = float(total_value_individual_unpaid_q.scalar())
+
+    total_value_consolidated_q = db.session.query(func.coalesce(func.sum(DailyCollection.total_amount), 0))
+    total_value_consolidated_q = apply_milkman_filter(total_value_consolidated_q, 'daily_collection')
+    total_value_consolidated = float(total_value_consolidated_q.scalar())
+
+    total_paid_out_q = db.session.query(func.coalesce(func.sum(FarmerPayout.amount), 0))
+    total_paid_out_q = apply_milkman_filter(total_paid_out_q, 'farmer_payout')
+    total_paid_out = float(total_paid_out_q.scalar())
+
+    remaining_due_pay = (total_value_individual_unpaid + total_value_consolidated) - total_paid_out
 
     due_collect_query = db.session.query(
         func.coalesce(func.sum(
@@ -2501,6 +2524,7 @@ def daily_log():
 
     expense_form = ExpenseForm(prefix='expense')
     sale_form = CasualSaleForm(prefix='sale')
+    collection_form = MilkCollectionForm(prefix='collection')
 
     selected_date_str = request.args.get('date', date.today().strftime('%Y-%m-%d'))
     try:
@@ -2535,17 +2559,34 @@ def daily_log():
         flash("Casual sale recorded successfully.", "success")
         return redirect(url_for('daily_log', date=selected_date_str))
 
+    if collection_form.validate_on_submit() and collection_form.submit_collection.data:
+        new_collection = DailyCollection(
+            milkman_id=current_user.id,
+            date=selected_date,
+            session=collection_form.session.data,
+            total_milk=collection_form.total_milk.data,
+            total_amount=collection_form.total_value.data
+        )
+        db.session.add(new_collection)
+        db.session.commit()
+        flash("Consolidated collection value recorded successfully.", "success")
+        return redirect(url_for('daily_log', date=selected_date_str))
+
     expenses = Expense.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
     casual_sales = CasualSale.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
+    daily_collections = DailyCollection.query.filter_by(milkman_id=current_user.id, date=selected_date).all()
 
     return render_template(
         'admin/daily_log.html',
         expense_form=expense_form,
         sale_form=sale_form,
+        collection_form=collection_form,
         expenses=expenses,
         casual_sales=casual_sales,
+        daily_collections=daily_collections,
         selected_date=selected_date
     )
+
 
 def apply_future_rates():
     """
@@ -2611,6 +2652,40 @@ def manage_announcements():
 
     announcements = Announcement.query.filter_by(milkman_id=current_user.id).order_by(Announcement.date_posted.desc()).all()
     return render_template('admin/manage_announcements.html', form=form, announcements=announcements)
+
+@app.route('/farmer_payouts', methods=['GET', 'POST'])
+@login_required
+def farmer_payouts():
+    if current_user.role not in ['milkman', 'admin']:
+        abort(403)
+
+    form = FarmerPayoutForm()
+    
+    if form.validate_on_submit():
+        new_payout = FarmerPayout(
+            milkman_id=current_user.id,
+            amount=form.amount.data,
+            payment_date=form.payment_date.data,
+            remarks=form.remarks.data
+        )
+        db.session.add(new_payout)
+        db.session.commit()
+        flash("Payout recorded successfully.", "success")
+        return redirect(url_for('farmer_payouts'))
+
+    # Calculate outstanding due
+    total_value_collected = db.session.query(func.sum(DailyCollection.total_amount)).filter_by(milkman_id=current_user.id).scalar() or 0
+    total_paid = db.session.query(func.sum(FarmerPayout.amount)).filter_by(milkman_id=current_user.id).scalar() or 0
+    outstanding_due = total_value_collected - total_paid
+
+    payouts = FarmerPayout.query.filter_by(milkman_id=current_user.id).order_by(FarmerPayout.payment_date.desc()).all()
+
+    return render_template(
+        'admin/farmer_payouts.html',
+        form=form,
+        payouts=payouts,
+        outstanding_due=outstanding_due
+    )
 
 # ------------------------
 # Run App

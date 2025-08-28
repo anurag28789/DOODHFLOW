@@ -7,7 +7,7 @@ from wtforms import (
 from wtforms.validators import (
     DataRequired, NumberRange, Optional, Length, AnyOf, EqualTo, InputRequired, Email
 )
-
+from datetime import date
 # ✅ CSRF is automatically enabled by FlaskForm + CSRFProtect in app.py
 
 # ---------------------- ADMIN DEACTIVATION FORM ----------------------
@@ -316,3 +316,21 @@ class AnnouncementForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=100)])
     content = TextAreaField('Content', validators=[DataRequired()])
     submit = SubmitField('Post Announcement')
+
+class FarmerPayoutForm(FlaskForm):
+    """Form for recording payouts to farmers."""
+    amount = FloatField("Amount Paid (₹)", validators=[DataRequired(), NumberRange(min=0.01)])
+    payment_date = DateField("Payment Date", format="%Y-%m-%d", validators=[DataRequired()], default=date.today)
+    remarks = StringField("Remarks", validators=[Optional(), Length(max=255)])
+    submit_payout = SubmitField("Record Payout")
+
+class MilkCollectionForm(FlaskForm):
+    """Form for logging the daily consolidated milk collection value."""
+    total_milk = FloatField("Total Milk Collected (L)", validators=[DataRequired(), NumberRange(min=0)])
+    total_value = FloatField("Total Value of Milk (₹)", validators=[DataRequired(), NumberRange(min=0)])
+    session = SelectField(
+        "Session",
+        choices=[('morning', 'Morning'), ('evening', 'Evening')],
+        validators=[DataRequired()]
+    )
+    submit_collection = SubmitField("Add Collection Value")

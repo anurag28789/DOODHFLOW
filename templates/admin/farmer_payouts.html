@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Farmer Payouts{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Farmer Payouts</h2>
+        <a href="{{ url_for('milkman_dashboard') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Back</a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card bg-danger text-white mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total Outstanding Due</h5>
+                    <p class="card-text fs-4 fw-bold">₹{{ "%.2f"|format(outstanding_due) }}</p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h4>Record a New Payout</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.amount.label(class="form-label") }}
+                            {{ form.amount(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.payment_date.label(class="form-label") }}
+                            {{ form.payment_date(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.remarks.label(class="form-label") }}
+                            {{ form.remarks(class="form-control") }}
+                        </div>
+                        {{ form.submit_payout(class="btn btn-primary") }}
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Payout History</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for payout in payouts %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ payout.payment_date.strftime('%d-%b-%Y') }}</strong>
+                                {% if payout.remarks %}<br><small class="text-muted">{{ payout.remarks }}</small>{% endif %}
+                            </div>
+                            <span class="badge bg-success rounded-pill fs-6">₹{{ "%.2f"|format(payout.amount) }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">No payouts recorded yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
